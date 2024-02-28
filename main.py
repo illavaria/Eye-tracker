@@ -83,10 +83,39 @@ class EyesDetector:
             #                     (255, 255, 255), 1)
             #     last_y = ly_score
 
+class CalibrationData:
+    # Left corner top
+    lct_left_eye, lct_right_eye = Eye(), Eye()
+
+    def __init__(self):
+        cap = cv2.VideoCapture(0)
+        eyeDetector = EyesDetector()
+
+        while True:
+            ret, frame = cap.read()
+            results = eyeDetector.get_face_mesh_results(frame)
+            if not results.multi_face_landmarks:
+                continue
+            eyeDetector.get_eyes_coordinates(results, frame)
+            frame_right_eye = eyeDetector.right_eye.draw(frame)
+            result_frame = eyeDetector.left_eye.draw(frame_right_eye)
+            result_frame = cv2.flip(result_frame, 1)
+            cv2.imshow('calibrate eyes', result_frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('a'):
+                lct_left_eye, lct_right_eye = eyeDetector.left_eye, eyeDetector.right_eye
+                cv2.imwrite('result.jpg', result_frame)
+                cap.release()
+                #cv2.destroyWindow('calibrate eyes')
+                #cv2.destroyAllWindows()
+                break
+
+
+
 
 def main():
+    calibrationData = CalibrationData()
     cap = cv2.VideoCapture(0)
-    ret, frame = cap.read()
     eyeDetector = EyesDetector()
 
     while True:
@@ -99,8 +128,6 @@ def main():
 
         # Make it writeable again
         frame.flags.writeable = True
-
-        frame_h, frame_w, _ = frame.shape
 
         if not results.multi_face_landmarks:
             continue
