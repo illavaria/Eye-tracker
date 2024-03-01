@@ -33,40 +33,16 @@ class EyesDetector:
     def get_eyes_coordinates(self, results, frame):
         frame_h, frame_w, _ = frame.shape
         for face_landmarks in results.multi_face_landmarks:
-            # Iterate over all landmark
-            for idx, lm in enumerate(face_landmarks.landmark):
-
-                # Right iris center landmark
-                if idx == 468:
-                    self.right_eye.center_x, self.right_eye.center_y = int(lm.x * frame_w), int(lm.y * frame_h)
-
-                # Left iris center landmark
-                if idx == 473:
-                    self.left_eye.center_x, self.left_eye.center_y = int(lm.x * frame_w), int(lm.y * frame_h)
-
-                # Eye inside corner landmark
-                if idx == 133:
-                    self.right_eye.inside_x, self.right_eye.inside_y = int(lm.x * frame_w), int(lm.y * frame_h)
-                if idx == 362:
-                    self.left_eye.inside_x, self.left_eye.inside_y = int(lm.x * frame_w), int(lm.y * frame_h)
-
-                # Eye outside corner landmark
-                if idx == 33:
-                    self.right_eye.outside_x, self.right_eye.outside_y = int(lm.x * frame_w), int(lm.y * frame_h)
-                if idx == 263: # for left eye 130 is like the corner of skin, 33 of purpil, 466 for right
-                    self.left_eye.outside_x, self.left_eye.outside_y = int(lm.x * frame_w), int(lm.y * frame_h)
-
-                # Left/right Top eye landmark
-                if idx == 159:
-                    self.right_eye.top_x, self.right_eye.top_y = int(lm.x * frame_w), int(lm.y * frame_h)
-                if idx == 386:
-                    self.left_eye.top_x, self.left_eye.top_y = int(lm.x * frame_w), int(lm.y * frame_h)
-
-                # Left/right Bottom eye landmark
-                if idx == 145:
-                    self.right_eye.bottom_x, self.right_eye.bottom_y = int(lm.x * frame_w), int(lm.y * frame_h)
-                if idx == 374:
-                    self.left_eye.bottom_x, self.left_eye.bottom_y = int(lm.x * frame_w), int(lm.y * frame_h)
+            self.right_eye.center_x, self.right_eye.center_y = int(face_landmarks.landmark[468].x * frame_w), int(face_landmarks.landmark[468].y * frame_h)
+            self.left_eye.center_x, self.left_eye.center_y = int(face_landmarks.landmark[473].x * frame_w), int(face_landmarks.landmark[473].y * frame_h)
+            self.right_eye.inside_x, self.right_eye.inside_y = int(face_landmarks.landmark[133].x * frame_w), int(face_landmarks.landmark[133].y * frame_h)
+            self.left_eye.inside_x, self.left_eye.inside_y = int(face_landmarks.landmark[362].x * frame_w), int(face_landmarks.landmark[362].y * frame_h)
+            self.right_eye.outside_x, self.right_eye.outside_y = int(face_landmarks.landmark[33].x * frame_w), int(face_landmarks.landmark[33].y * frame_h)
+            self.left_eye.outside_x, self.left_eye.outside_y = int(face_landmarks.landmark[263].x * frame_w), int(face_landmarks.landmark[263].y * frame_h)
+            self.right_eye.top_x, self.right_eye.top_y = int(face_landmarks.landmark[159].x * frame_w), int(face_landmarks.landmark[159].y * frame_h)
+            self.left_eye.top_x, self.left_eye.top_y= int(face_landmarks.landmark[386].x * frame_w), int(face_landmarks.landmark[386].y * frame_h)
+            self.right_eye.bottom_x, self.right_eye.bottom_y = int(face_landmarks.landmark[145].x * frame_w), int(face_landmarks.landmark[145].y * frame_h)
+            self.left_eye.bottom_x, self.left_eye.bottom_y = int(face_landmarks.landmark[374].x * frame_w), int(face_landmarks.landmark[374].y * frame_h)
 
             # # Calculate left eye scores (x,y)
             # if (inside_x - outside_x) != 0:
@@ -86,8 +62,12 @@ class EyesDetector:
 class CalibrationData:
     # Left corner top
     lct_left_eye, lct_right_eye = Eye(), Eye()
+    tc_left_eye, tc_right_eye = Eye(), Eye()
+    rct_left_eye, rct_right_eye = Eye(), Eye()
+
 
     def __init__(self):
+        i = 0
         cap = cv2.VideoCapture(0)
         eyeDetector = EyesDetector()
 
@@ -104,19 +84,34 @@ class CalibrationData:
 
             if cv2.waitKey(1) & 0xFF == ord('a'):
                 lct_left_eye, lct_right_eye = eyeDetector.left_eye, eyeDetector.right_eye
-                cv2.imwrite('result.jpg', result_frame)
-                cap.release()
+                cv2.imwrite('result' + str(i) + '.jpg', result_frame)
+                i += 1
+                # cap.release()
                 #cv2.destroyWindow('calibrate eyes')
                 #cv2.destroyAllWindows()
-                break
+                if i == 9:
+                    break
 
-
+def PreDefine(eyeDetector):
+    cap = cv2.VideoCapture(0)
+    ret, frame = cap.read()
+    results = eyeDetector.get_face_mesh_results(frame)
+    eyeDetector.get_eyes_coordinates(results, frame)
+    eye_difference = eyeDetector.left_eye.outside_x- eyeDetector.right_eye.outside_x
+    eye_right_x = eyeDetector.right_eye.inside_x - eyeDetector.right_eye.outside_x
+    eye_left_x = eyeDetector.left_eye.outside_x - eyeDetector.left_eye.inside_x
+    cap.release()
+    return eye_difference, eye_right_x, eye_left_x
 
 
 def main():
-    calibrationData = CalibrationData()
+    #calibrationData = CalibrationData()
     cap = cv2.VideoCapture(0)
     eyeDetector = EyesDetector()
+
+    eye_difference, eye_right_delta_x, eye_left_delta_x = PreDefine(eyeDetector)
+    print(eye_difference)
+    i = 0
 
     while True:
         ret, frame = cap.read()
@@ -136,10 +131,19 @@ def main():
         frame_right_eye = eyeDetector.right_eye.draw(frame)
         result_frame = eyeDetector.left_eye.draw(frame_right_eye)
 
-        result_frame = cv2.flip(result_frame, 1)
+        #result_frame = cv2.flip(result_frame, 1)
         # Show the image
         cv2.imshow('eyes', result_frame)
 
+        # result_frame = result_frame[eyeDetector.right_eye.outside_y-30:eyeDetector.right_eye.outside_y+30,
+        #                eyeDetector.right_eye.outside_x-10:eyeDetector.right_eye.outside_x+10+eye_difference]
+        result_frame = result_frame[eyeDetector.left_eye.outside_y - 30:eyeDetector.left_eye.outside_y + 30,
+                       eyeDetector.left_eye.outside_x - 20 -eye_left_delta_x:eyeDetector.left_eye.outside_x + 15]
+        cv2.imshow('eyes difference', result_frame)
+        cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/left_eye3/result' + str(i) + '.jpg', result_frame)
+        i += 1
+        if i == 20:
+            break
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
