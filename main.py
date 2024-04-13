@@ -2,7 +2,10 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import  Image
 import time
+import pandas as pd
+import os
 
 import torch
 import torch.nn as nn
@@ -586,13 +589,13 @@ def NetTry():
 
 def DebugNet():
     eyesnet_left = EyesNet()
-    eyesnet_left.load_state_dict(torch.load("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left/epoch_300.pth"))
+    eyesnet_left.load_state_dict(torch.load("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth"))
     eyesnet_right = EyesNet()
-    eyesnet_right.load_state_dict(torch.load("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right/epoch_300.pth"))
+    eyesnet_right.load_state_dict(torch.load("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth"))
 
     eye_distances = EyeDistances()
     eyeDetector = EyesDetector()
-    frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
+    frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_moving_pupils_much_left_first/result0.jpg', 0)
     results = eyeDetector.get_face_mesh_results(frame)
     eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
     plt.imshow(frame)
@@ -601,9 +604,12 @@ def DebugNet():
     plt.scatter(eye_distances.left_eye.outside[0], eye_distances.left_eye.outside[1], c="r")
     plt.show()
     for i in range(1, 20):
-        frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result' + str(i)+'.jpg', 0)
-        # results = eyeDetector.get_face_mesh_results(frame)
-        # eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
+        frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_moving_pupils_much_left_first/result' + str(i)+'.jpg', 0)
+        if i % 5 == 0:
+            results = eyeDetector.get_face_mesh_results(frame)
+            # prev_eye_distances = eye_distances
+            eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
+            # eye_distances.right_eye.outside = (prev_eye_distances.right_eye.outside + eye_distances.right_eye.outside)/2
         eye_distances = GetEyesCoordinates(eyesnet_left, eyesnet_right, frame, eye_distances)
         cv2.drawMarker(frame, eye_distances.left_eye.center, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.left_eye.inside, (255, 0, 255), markerSize=5)
@@ -612,7 +618,7 @@ def DebugNet():
         cv2.drawMarker(frame, eye_distances.right_eye.center, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.inside, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.outside, (255, 0, 255), markerSize=5)
-        cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynet_eyes_seperatly/result' + str(i) + '.jpg', frame)
+        cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynet_myds_fixed_moving_much_left_first_plus_google/result' + str(i) + '.jpg', frame)
 
 # main()
 # CalibrationData()
@@ -639,3 +645,153 @@ DebugNet()
 #
 # cap.release()
 # cv2.destroyWindow()
+
+def handle_eye(image, corner1, corner2, pupil):
+
+    # line_len = distance(*corner1, *corner2)
+    # x, y -> y, x
+    corner1 = corner1[::-1]
+    corner2 = corner2[::-1]
+    pupil = pupil[::-1]
+
+    # if corner1[0] > corner2[0]:
+    #     corner1[0], corner2[0] = corner2[0], corner1[0]
+
+    corner_of_frame1 = corner1 - np.array([40, 20]) #- np.array([5, 10])
+    corner_of_frame2 = corner2 + np.array([30, 20]) #+ np.array([5, 10])
+
+    sub_image = image[corner_of_frame1[0]:corner_of_frame2[0], corner_of_frame1[1]:corner_of_frame2[1]]
+
+    pupil_new = pupil - corner_of_frame1
+    corner1_new = corner1 - corner_of_frame1
+    corner2_new = corner2 - corner_of_frame1
+    pupil_new = pupil_new / sub_image.shape[:2]
+    corner1_new = corner1_new / sub_image.shape[:2]
+    corner2_new = corner2_new / sub_image.shape[:2]
+
+    # sub_image = cv2.resize(sub_image, image_shape[::-1], interpolation=cv2.INTER_AREA)
+    # sub_image = cv2.cvtColor(sub_image, cv2.COLOR_RGB2GRAY)
+
+    return sub_image, pupil_new, corner1_new, corner2_new
+
+def my_image_to_train_data(image, points):
+    eye_right_c1 = points[6:8]
+    eye_right_c2 = points[8:10]
+    eye_right_pupil = points[10:12]
+    eye_right_c1 = eye_right_c1[::-1]
+    eye_right_c2 = eye_right_c2[::-1]
+    eye_right_pupil = eye_right_pupil[::-1]
+
+    right_image, right_pupil, right_corner1, right_corner2 = handle_eye(image, eye_right_c1, eye_right_c2,
+                                                                        eye_right_pupil)
+
+    eye_left_c1 = points[0:2]
+    eye_left_c2 = points[2:4]
+    eye_left_pupil = points[4:6]
+    eye_left_c1 = eye_left_c1[::-1]
+    eye_left_c2 = eye_left_c2[::-1]
+    eye_left_pupil = eye_left_pupil[::-1]
+
+    left_image, left_pupil, left_corner1, left_corner2 = handle_eye(image, eye_left_c1, eye_left_c2, eye_left_pupil)
+
+    return right_image, right_pupil, right_corner1, right_corner2, left_image, left_pupil, left_corner1, left_corner2
+
+def load_my_image_data(patient_name):
+
+    annotation_path = os.path.join('/Users/illaria/BSUIR/Diploma/mydataset_only_good_photos/', patient_name + '/annotationscopy.txt')
+    data_folder = os.path.join('/Users/illaria/BSUIR/Diploma/mydataset_only_good_photos/', patient_name)
+
+    annotation = pd.read_csv(annotation_path, sep=" ", header=None)
+
+    points = np.array(annotation.loc[:, list(range(0, 12))])
+    print(points)
+
+    filenames = os.listdir(data_folder)
+    filenames.sort()
+    filenames.remove('annotations.txt')
+    filenames.remove('annotationscopy.txt')
+    filenames.remove('.DS_Store')
+    images = [np.array(Image.open(os.path.join(data_folder, filename))) for filename in filenames]
+
+    return images, points
+
+def get_my_image_data(images, points):
+    for i in range(len(images)):
+        signle_image_data = my_image_to_train_data(images[i], points[i])
+
+        if any(stuff is None for stuff in signle_image_data):
+            continue
+
+        right_image, right_pupil, right_corner1, right_corner2, left_image, left_pupil, left_corner1, left_corner2 = signle_image_data
+        if i == 68:
+            # cv2.drawMarker(images[i], [points[i][1], points[i][0]], (255, 0, 255), markerSize=5)
+            # cv2.drawMarker(images[i], [points[i][3], points[i][2]], (255, 0, 255), markerSize=5)
+            # cv2.drawMarker(images[i], [points[i][5], points[i][4]], (255, 0, 255), markerSize=5)
+            plt.imshow(left_image)
+            plt.title('left_pupil' + str(i))
+            plt.scatter(left_pupil[1] * left_image.shape[1], left_pupil[0] * left_image.shape[0], c="r")  # [0] - y, [1] - x
+            plt.scatter(left_corner1[1] * left_image.shape[1], left_corner1[0] * left_image.shape[0], c="r")
+            plt.scatter(left_corner2[1] * left_image.shape[1], left_corner2[0] * left_image.shape[0], c="r")
+            plt.show()
+            plt.imshow(right_image)
+            plt.title('right_pupil' + str(i))
+            plt.scatter(right_pupil[1] * right_image.shape[1], right_pupil[0] * right_image.shape[0], c="r")  # [0] - y, [1] - x
+            plt.scatter(right_corner1[1] * right_image.shape[1], right_corner1[0] * right_image.shape[0], c="r")
+            plt.scatter(right_corner2[1] * right_image.shape[1], right_corner2[0] * right_image.shape[0], c="r")
+            plt.show()
+
+        if any(right_pupil < 0) or any(left_pupil < 0):
+            continue
+
+# images, points = load_my_image_data('15')
+# get_my_image_data(images, points)
+# cv2.drawMarker(images[0], [points[0][1] - 5, points[0][0] - 4], (255, 0, 255), markerSize=5)
+# cv2.drawMarker(images[0], [points[0][3], points[0][2]], (255, 0, 255), markerSize=5)
+# cv2.drawMarker(images[0], [points[0][5], points[0][4]], (255, 0, 255), markerSize=5)
+# cv2.drawMarker(images[0], [points[0][7] - 2, points[0][6] - 1], (255, 0, 255), markerSize=5)
+# cv2.drawMarker(images[0], [points[0][9] - 3, points[0][8]-3] , (255, 0, 255), markerSize=5)
+# cv2.drawMarker(images[0], [points[0][11], points[0][10]], (255, 0, 255), markerSize=5)
+# cv2.imshow('aa', images[0])
+# cv2.waitKey(0)
+
+# annotation = pd.read_csv('/Users/illaria/BSUIR/Diploma/mydataset/01/annotations.txt', sep=" ", header=None)
+# points = np.array(annotation.loc[:, list(range(2))])
+# filenames = np.array(annotation.loc[:, [0]]).reshape(-1)
+# images = [np.array(Image.open(os.path.join(data_folder, filename))) for filename in filenames]
+# print(points)
+
+def CreateMyDataset():
+    cap = cv2.VideoCapture(0)
+    eye_distances = EyeDistances()
+    eyeDetector = EyesDetector()
+
+    ret, frame = cap.read()
+    ret, frame = cap.read()
+    annotations = open('/Users/illaria/BSUIR/Diploma/mydataset/23/annotations.txt', 'x')
+    j = 0
+    for i in range(200):
+        ret, frame = cap.read()
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        _, _, frame = cv2.split(hsv)
+        cv2.imshow('eyes', frame)
+        if i % 2 == 0:
+            results = eyeDetector.get_face_mesh_results(frame)
+            eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
+            print(eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1])
+            if eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1] > 14:
+                cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/23/' + str(j) + '.jpg', frame)
+                annotations.write(str(eye_distances.left_eye.inside[1]) + ' ' + str(eye_distances.left_eye.inside[0]) + ' ' +
+                                  str(eye_distances.left_eye.outside[1]) + ' ' + str(eye_distances.left_eye.outside[0]) + ' ' +
+                                  str(eye_distances.left_eye.center[1]) + ' ' + str(eye_distances.left_eye.center[0]) + ' ' +
+                                  str(eye_distances.right_eye.outside[1]) + ' ' + str(eye_distances.right_eye.outside[0]) + ' ' +
+                                  str(eye_distances.right_eye.inside[1]) + ' ' + str(eye_distances.right_eye.inside[0]) + ' ' +
+                                  str(eye_distances.right_eye.center[1]) + ' ' + str(eye_distances.right_eye.center[0]) + '\n')
+                j += 1
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+    annotations.close()
+
+# CreateMyDataset()
