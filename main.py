@@ -1,3 +1,5 @@
+import math
+
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -75,15 +77,15 @@ class EyesNet(nn.Module):
 class Eye:
     # x - 0, y - 1
     def __init__(self):
-        self.center = [0, 0]
+        self.pupil = [0, 0]
         self.left_corner = [0, 0]
         self.right_corner = [0, 0]
         self.top = [0, 0]
         self.bottom = [0, 0]
-        self.out_distance_x, self.inner_distance_x = 0, 0
+        self.left_distance, self.right_distance = [0, 0], [0, 0] #x - 0, y - 1
 
     def draw(self, frame):
-        cv2.drawMarker(frame, (self.center[0], self.center[1]), (255, 255, 0), markerSize=5)
+        cv2.drawMarker(frame, (self.pupil[0], self.pupil[1]), (255, 255, 0), markerSize=5)
         cv2.drawMarker(frame, (self.left_corner[0], self.left_corner[1]), (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, (self.right_corner[0], self.right_corner[1]), (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, (self.top[0], self.top[1]), (255, 0, 255), markerSize=5)
@@ -97,17 +99,33 @@ class EyeDistances:
         self.right_eye = Eye()
         self.standard_x = 0
         self.left_distance_avg_x, self.right_distance_avg_x = 0, 0
-        self.distance_percentage_x = 0  # out/inner
+        self.distance_percentage_x = 0  # left/right
+        self.pupil_angle = 0.0
+        self.right_corner_angle = 0.0
+        self.left_corner_angle = 0.0
+
+    def get_distances(self, eye):
+        eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
+                            (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
+        eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
+                              (eye.pupil[1] - eye.right_corner[1]/ self.standard_x)]
+
+    @staticmethod
+    def get_angle(dot1, dot2):
+        return math.atan(dot1[1] - dot2[1]) / (dot1[0] - dot2[0])
 
     def get_distance(self):
-        self.standard_x = self.left_eye.center[0] - self.right_eye.center[0]
-        self.left_eye.out_distance_x = (self.left_eye.left_corner[0] - self.left_eye.center[0]) / self.standard_x
-        self.right_eye.out_distance_x = (self.right_eye.center[0] - self.right_eye.right_corner[0]) / self.standard_x
-        self.left_distance_avg_x = (self.left_eye.out_distance_x + self.right_eye.inner_distance_x) / 2
+        self.standard_x = self.left_eye.pupil[0] - self.right_eye.pupil[0]
 
-        self.left_eye.inner_distance_x = (self.left_eye.center[0] - self.left_eye.right_corner[0]) / self.standard_x
-        self.right_eye.inner_distance_x = (self.right_eye.left_corner[0] - self.right_eye.center[0]) / self.standard_x
-        self.right_distance_avg_x = (self.left_eye.inner_distance_x + self.right_eye.out_distance_x) / 2
+        self.pupil_angle = self.get_angle(self.left_eye.pupil, self.right_eye.pupil)
+        self.right_corner_angle = self.get_angle(self.left_eye.right_corner, self.right_eye.right_corner)
+        self.left_corner_angle = self.get_angle(self.left_eye.left_corner, self.right_eye.left_corner)
+
+        self.get_distances(self.left_eye)
+        self.get_distances(self.right_eye)
+
+        self.left_distance_avg_x = (self.left_eye.left_distance[0] + self.right_eye.left_distance[0]) / 2
+        self.right_distance_avg_x = (self.left_eye.right_distance[0] + self.right_eye.right_distance[0]) / 2
 
         self.distance_percentage_x = self.left_distance_avg_x / self.right_distance_avg_x
 
@@ -122,13 +140,14 @@ class EyesDetector:
     def get_face_mesh_results(self, frame):
         return self.face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-    def get_eyes_coordinates(self, results, frame, eye_distances):
+    @staticmethod
+    def get_eyes_coordinates(results, frame, eye_distances):
         frame_h, frame_w = frame.shape
         for face_landmarks in results.multi_face_landmarks:  # if several faces
-            eye_distances.right_eye.center = [int(face_landmarks.landmark[468].x * frame_w),
-                                              int(face_landmarks.landmark[468].y * frame_h)]
-            eye_distances.left_eye.center = [int(face_landmarks.landmark[473].x * frame_w),
-                                             int(face_landmarks.landmark[473].y * frame_h)]
+            eye_distances.right_eye.pupil = [int(face_landmarks.landmark[468].x * frame_w),
+                                             int(face_landmarks.landmark[468].y * frame_h)]
+            eye_distances.left_eye.pupil = [int(face_landmarks.landmark[473].x * frame_w),
+                                            int(face_landmarks.landmark[473].y * frame_h)]
             eye_distances.right_eye.left_corner = [int(face_landmarks.landmark[133].x * frame_w),
                                                    int(face_landmarks.landmark[133].y * frame_h)]
             eye_distances.left_eye.right_corner = [int(face_landmarks.landmark[362].x * frame_w),
@@ -317,45 +336,14 @@ def test_with_live_video():
         cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/live_video_results/result' + str(i) + '.jpg',
                     image1)
 
+def print_distance(eye_distances):
+    print(eye_distances.standard_x)
+    print('percentage: ', eye_distances.distance_percentage_x)
 
-def get_corner_pixels():
-    image0 = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/test_photos_window_on_side/new_image1.jpg')
-    hsv = cv2.cvtColor(image0, cv2.COLOR_BGR2HSV)
-    _, _, image0 = cv2.split(hsv)
-
-    x0, y0 = 21, 21
-
-    image1 = image0[y0 - 5:y0 + 5, x0 - 5:x0 + 5]
-    print(image1)
-    cv2.imshow('f', image1)
-    cv2.waitKey()
-
-
-def print_distance():
-    image0 = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/calibration/result0.jpg', 0)
-    eyeDetector = EyesDetector()
-    eye_distances = EyeDistances()
-    results = eyeDetector.get_face_mesh_results(image0)
-    eyeDetector.get_eyes_coordinates(results, image0, eye_distances)
-    image1 = eyeDetector.eye_distances.right_eye.draw(image0)
-    image1 = eyeDetector.eye_distances.left_eye.draw(image1)
-
-    print(eyeDetector.eye_distances.standard_x)
-    print('out:  ', eyeDetector.eye_distances.left_eye.out_distance_x,
-          eyeDetector.eye_distances.right_eye.out_distance_x, eyeDetector.eye_distances.out_distance_avg_x)
-    print('inner:', eyeDetector.eye_distances.left_eye.inner_distance_x,
-          eyeDetector.eye_distances.right_eye.inner_distance_x, eyeDetector.eye_distances.inner_distance_avg_x)
-
-    print('percentage: ', eyeDetector.eye_distances.distance_percentage_x)
-
-    print('left eye:  ', eyeDetector.eye_distances.left_eye.out_distance_x,
-          eyeDetector.eye_distances.left_eye.inner_distance_x)
-    print('right eye: ', eyeDetector.eye_distances.right_eye.out_distance_x,
-          eyeDetector.eye_distances.right_eye.inner_distance_x)
-
-    # cv2.imshow('aa', image1)
-    # cv2.imshow('flipped', cv2.flip(image1, 1))
-    # cv2.waitKey()
+    print('left eye:  ', eye_distances.left_eye.left_distance_x,
+          eye_distances.left_eye.right_distance_x)
+    print('right eye: ', eye_distances.right_eye.left_distance_x,
+          eye_distances.right_eye.right_distance_x)
 
 
 def calculate_distance_for_eyesnet(x1, y1, x2, y2):
@@ -394,25 +382,25 @@ class EyesRecognizer:
 
     def get_coordinates_for_one_eye(self, image, eye, eyesnet):
         image, corner_of_frame, shapes_diff = self.get_eye_image(image, eye.right_corner[::-1], eye.left_corner[::-1])
-        y_pupil, y_corner1, y_corner2 = eyesnet(image)
+        y_pupil, y_right_corner, y_left_corner = eyesnet(image)
 
         y_pupil = y_pupil.detach().squeeze().numpy().reshape(-1, 2)
-        y_corner1 = y_corner1.detach().squeeze().numpy().reshape(-1, 2)
-        y_corner2 = y_corner2.detach().squeeze().numpy().reshape(-1, 2)
+        y_right_corner = y_right_corner.detach().squeeze().numpy().reshape(-1, 2)
+        y_left_corner = y_left_corner.detach().squeeze().numpy().reshape(-1, 2)
 
         image = np.hstack(image)
         # plt.imshow(image)
         # plt.scatter(y_pupil[0, 1] * self.image_shape[1], y_pupil[0, 0] * self.image_shape[0], c="r")
-        # plt.scatter(y_corner1[0, 1] * self.image_shape[1], y_corner1[0, 0] * self.image_shape[0], c="r")
+        # plt.scatter(y_right_corner[0, 1] * self.image_shape[1], y_right_corner[0, 0] * self.image_shape[0], c="r")
         # plt.scatter(y_corner2[0, 1] * self.image_shape[1], y_corner2[0, 0] * self.image_shape[0], c="r")
         # plt.show()
 
-        eye.center = (np.array(
-            self.resize_coordinates(y_pupil, shapes_diff, corner_of_frame)) + np.array(eye.center)) // 2
-        eye.left_corner = (np.array(
-            self.resize_coordinates(y_corner2, shapes_diff, corner_of_frame)) + np.array(eye.left_corner)) // 2
+        eye.pupil = (np.array(
+            self.resize_coordinates(y_pupil, shapes_diff, corner_of_frame)) + np.array(eye.pupil)) // 2
         eye.right_corner = (np.array(
-            self.resize_coordinates(y_corner1, shapes_diff, corner_of_frame)) + np.array(eye.right_corner)) // 2
+            self.resize_coordinates(y_right_corner, shapes_diff, corner_of_frame)) + np.array(eye.right_corner)) // 2
+        eye.left_corner = (np.array(
+            self.resize_coordinates(y_left_corner, shapes_diff, corner_of_frame)) + np.array(eye.left_corner)) // 2
 
     def get_eyes_coordinates(self, frame, eye_distances):
         self.get_coordinates_for_one_eye(frame, eye_distances.left_eye, self.eyesnet_left)
@@ -421,66 +409,13 @@ class EyesRecognizer:
         eye_distances.get_distance()
 
 
-
-# def net_try():
-#     cap = cv2.VideoCapture(0)
-#     ret, frame = cap.read()
-#     ret, frame = cap.read()
-#     ret, frame = cap.read()
-#     ret, frame = cap.read()
-#     eyesnet = EyesNet()
-#     eyesnet.load_state_dict(torch.load("eyes_net/epoch_300.pth"))
-#
-#     eye_distances = EyeDistances()
-#     eyeDetector = EyesDetector()
-#     ret, frame = cap.read()
-#     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-#     _, _, frame = cv2.split(hsv)
-#
-#     frame.flags.writeable = False
-#     results = eyeDetector.get_face_mesh_results(frame)
-#     frame.flags.writeable = True
-#     eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
-#
-#     eye_distances = get_eyes_coordinates(eyesnet, frame, eye_distances)
-#     # cv2.drawMarker(frame, eye_distances.left_eye.center, (255, 0, 255), markerSize=5)
-#     # cv2.drawMarker(frame, eye_distances.left_eye.inside, (255, 0, 255), markerSize=5)
-#     # cv2.drawMarker(frame, eye_distances.left_eye.outside, (255, 0, 255), markerSize=5)
-#     #
-#     # cv2.drawMarker(frame, eye_distances.right_eye.center, (255, 0, 255), markerSize=5)
-#     # cv2.drawMarker(frame, eye_distances.right_eye.inside, (255, 0, 255), markerSize=5)
-#     # cv2.drawMarker(frame, eye_distances.right_eye.outside, (255, 0, 255), markerSize=5)
-#
-#     # eyeDetector.eye_distances.left_eye.draw(frame)
-#     # cv2.imshow("Pupil", frame)
-#     # cv2.waitKey()
-#
-#     for i in range(20):
-#         ret, frame = cap.read()
-#         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-#         _, _, frame = cv2.split(hsv)
-#         eye_distances = get_eyes_coordinates(eyesnet, frame, eye_distances)
-#         # results = eyeDetector.get_face_mesh_results(frame)
-#         # eye_distances = eyeDetector.get_eyes_coordinates(results, frame, eye_distances)
-#         # cv2.drawMarker(frame, eye_distances.left_eye.center, (255, 0, 255), markerSize=5)
-#         # cv2.drawMarker(frame, eye_distances.left_eye.inside, (255, 0, 255), markerSize=5)
-#         # cv2.drawMarker(frame, eye_distances.left_eye.outside, (255, 0, 255), markerSize=5)
-#         #
-#         # cv2.drawMarker(frame, eye_distances.right_eye.center, (255, 0, 255), markerSize=5)
-#         # cv2.drawMarker(frame, eye_distances.right_eye.inside, (255, 0, 255), markerSize=5)
-#         # cv2.drawMarker(frame, eye_distances.right_eye.outside, (255, 0, 255), markerSize=5)
-#         cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynetTry1/result' + str(i) + '.jpg', frame)
-#
-#     cap.release()
-
-
 def debug_net():
     eyes_recognizer = EyesRecognizer("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
                                      "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
 
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
-    frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_gaze_on_screen/result0.jpg', 0)
+    frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
     results = eye_detector.get_face_mesh_results(frame)
     eye_detector.get_eyes_coordinates(results, frame, eye_distances)
     # plt.imshow(frame)
@@ -488,42 +423,39 @@ def debug_net():
     # plt.scatter(eye_distances.left_eye.inside[0], eye_distances.left_eye.inside[1], cq="r")
     # plt.scatter(eye_distances.left_eye.outside[0], eye_distances.left_eye.outside[1], c="r")
     # plt.show()
-    for i in range(1, 50):
+    for i in range(1, 20):
         frame = cv2.imread(
-            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_gaze_on_screen/result' + str(i) + '.jpg', 0)
+            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result' + str(i) + '.jpg', 0)
         if i % 6 == 0:
             results = eye_detector.get_face_mesh_results(frame)
             eye_detector.get_eyes_coordinates(results, frame, eye_distances)
         eyes_recognizer.get_eyes_coordinates(frame, eye_distances)
-        cv2.drawMarker(frame, eye_distances.left_eye.center, (255, 0, 255), markerSize=5)
+        cv2.drawMarker(frame, eye_distances.left_eye.pupil, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.left_eye.left_corner, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.left_eye.right_corner, (255, 0, 255), markerSize=5)
 
-        cv2.drawMarker(frame, eye_distances.right_eye.center, (255, 0, 255), markerSize=5)
+        cv2.drawMarker(frame, eye_distances.right_eye.pupil, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.left_corner, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.right_corner, (255, 0, 255), markerSize=5)
         cv2.imshow('frame', frame)
         print(i)
-        print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
-        print(eye_distances.distance_percentage_x)
+        # print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
+        # print(eye_distances.distance_percentage_x)
+        print('angles:')
+        print(eye_distances.pupil_angle)
+        print(eye_distances.left_corner_angle)
+        print(eye_distances.right_corner_angle)
+        # print_distance(eye_distances)
 
         while True:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-        cv2.imwrite(
-            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynet_myds_fixed_gaze_on_screen_plus_google/result' + str(
-                i) + '.jpg', frame)
+        # cv2.imwrite(
+        #     '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynet_myds_fixed_up_down_plus_google/result' + str(
+        #         i) + '.jpg', frame)
 
 
 # main()
-# CalibrationData()
-# Contrast()
-# Fixate()
-# Test()
-# TestWithLiveVideo()
-# GetCornerPixels()
-# GetDistance()
-# NetTry()
 debug_net()
 
 
@@ -663,10 +595,10 @@ def create_my_dataset():
                 annotations.write(
                     str(eye_distances.left_eye.left_corner[1]) + ' ' + str(eye_distances.left_eye.left_corner[0]) + ' ' +
                     str(eye_distances.left_eye.right_corner[1]) + ' ' + str(eye_distances.left_eye.right_corner[0]) + ' ' +
-                    str(eye_distances.left_eye.center[1]) + ' ' + str(eye_distances.left_eye.center[0]) + ' ' +
+                    str(eye_distances.left_eye.pupil[1]) + ' ' + str(eye_distances.left_eye.pupil[0]) + ' ' +
                     str(eye_distances.right_eye.right_corner[1]) + ' ' + str(eye_distances.right_eye.right_corner[0]) + ' ' +
                     str(eye_distances.right_eye.left_corner[1]) + ' ' + str(eye_distances.right_eye.left_corner[0]) + ' ' +
-                    str(eye_distances.right_eye.center[1]) + ' ' + str(eye_distances.right_eye.center[0]) + '\n')
+                    str(eye_distances.right_eye.pupil[1]) + ' ' + str(eye_distances.right_eye.pupil[0]) + '\n')
                 j += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
