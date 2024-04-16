@@ -98,8 +98,8 @@ class Camera:
     def write_frame(self, frame):
         cv2.imwrite(self.address_for_write, frame)
 
-    def read_frame_from_file(self):
-        return cv2.imread(self.address_for_read)
+    def read_frame_from_file(self, flags):
+        return cv2.imread(self.address_for_read, flags)
 
 
 class ImageEdit():
