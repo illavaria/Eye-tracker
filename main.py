@@ -74,6 +74,83 @@ class EyesNet(nn.Module):
         return x_pupil, x_corner1, x_corner2
 
 
+class Camera:
+    def __init__(self, camera_number, address_for_write, address_for_read):
+        self.camera_number = camera_number
+        # add checks
+        self.capture = None
+        self.address_for_write = address_for_write
+        self.address_for_read = address_for_read
+
+    def read_frame(self):
+        if self.capture is None:
+            return None
+        ret, frame = self.capture.read()
+        if ret is True:
+            return frame
+
+    def start_capture(self):
+        self.capture = cv2.VideoCapture(self.camera_number)
+
+    def stop_capture(self):
+        self.capture.release()
+
+    def write_frame(self, frame):
+        cv2.imwrite(self.address_for_write, frame)
+
+    def read_frame_from_file(self):
+        return cv2.imread(self.address_for_read)
+
+
+class ImageEdit():
+    default_marker_size = 5
+    default_marker_color = (255, 0, 255)
+    default_text_font = cv2.FONT_HERSHEY_SIMPLEX
+    default_text_color = (255, 0, 0)
+    default_text_thickness = 2
+    default_text_font_scale = 1.0
+
+    @staticmethod
+    def draw_on_image(image, position, color, marker_size=default_marker_size):
+        cv2.drawMarker(image, position, color, marker_size)
+
+    @staticmethod
+    def put_text_on_image(image, position, text, font=default_text_font, font_scale=default_text_font_scale,
+                          color=default_text_color, thickness=default_text_thickness):
+        cv2.putText(image, text, position, font, font_scale, color, thickness)
+
+    @staticmethod
+    def split_image(image):
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        _, _, frame = cv2.split(hsv)
+        return frame
+
+    @staticmethod
+    def image_to_RGB(image):
+        cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    @staticmethod
+    def resize_image(image, image_shape):
+        cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+
+
+
+
+
+# cap = cv2.VideoCapture(0)
+# while True:
+#     ret, frame = cap.read()
+#     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     # ret, frame = cv2.threshold(frame, 127, 255, 0)
+#     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+#     _, _, frame = cv2.split(hsv)
+#     cv2.imshow('eyes', frame)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+#
+# cap.release()
+# cv2.destroyWindow()
+
 class Eye:
     # x - 0, y - 1
     def __init__(self):
@@ -82,7 +159,10 @@ class Eye:
         self.right_corner = [0, 0]
         self.top = [0, 0]
         self.bottom = [0, 0]
-        self.left_distance, self.right_distance = [0, 0], [0, 0] #x - 0, y - 1
+        self.left_distance, self.right_distance = [0, 0], [0, 0]  # x - 0, y - 1
+        self.rclc = 0.0
+        self.prc, self.plc = 0.0, 0.0
+        self.right_angle, self.left_angle = 0.0, 0.0
 
     def draw(self, frame):
         cv2.drawMarker(frame, (self.pupil[0], self.pupil[1]), (255, 255, 0), markerSize=5)
@@ -104,15 +184,20 @@ class EyeDistances:
         self.right_corner_angle = 0.0
         self.left_corner_angle = 0.0
 
-    def get_distances(self, eye):
-        eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
-                            (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
-        eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
-                              (eye.pupil[1] - eye.right_corner[1]/ self.standard_x)]
-
     @staticmethod
     def get_angle(dot1, dot2):
-        return math.atan(dot1[1] - dot2[1]) / (dot1[0] - dot2[0])
+        return math.atan((dot1[1] - dot2[1]) / (dot1[0] - dot2[0])) * 180 / math.pi
+
+    def get_distances(self, eye):
+        eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
+                             (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
+        eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
+                              (eye.pupil[1] - eye.right_corner[1] / self.standard_x)]
+        rclc_angle = self.get_angle(eye.left_corner, eye.right_corner)
+        eye.left_angle = self.get_angle(eye.left_corner, eye.pupil) - rclc_angle
+        eye.right_angle = rclc_angle - self.get_angle(eye.right_corner, eye.pupil)
+        big_angle = self.get_angle(eye.right_corner, eye.pupil) - self.get_angle(eye.left_corner, eye.pupil)
+        print(big_angle)
 
     def get_distance(self):
         self.standard_x = self.left_eye.pupil[0] - self.right_eye.pupil[0]
@@ -151,11 +236,11 @@ class EyesDetector:
             eye_distances.right_eye.left_corner = [int(face_landmarks.landmark[133].x * frame_w),
                                                    int(face_landmarks.landmark[133].y * frame_h)]
             eye_distances.left_eye.right_corner = [int(face_landmarks.landmark[362].x * frame_w),
-                                                  int(face_landmarks.landmark[362].y * frame_h)]
+                                                   int(face_landmarks.landmark[362].y * frame_h)]
             eye_distances.right_eye.right_corner = [int(face_landmarks.landmark[33].x * frame_w),
                                                     int(face_landmarks.landmark[33].y * frame_h)]
             eye_distances.left_eye.left_corner = [int(face_landmarks.landmark[263].x * frame_w),
-                                                   int(face_landmarks.landmark[263].y * frame_h)]
+                                                  int(face_landmarks.landmark[263].y * frame_h)]
             eye_distances.right_eye.top = [int(face_landmarks.landmark[159].x * frame_w),
                                            int(face_landmarks.landmark[159].y * frame_h)]
             eye_distances.left_eye.top = [int(face_landmarks.landmark[386].x * frame_w),
@@ -304,6 +389,7 @@ def fixate(image0, x0, y0, image1):
 def main():
     pass
 
+
 def test_with_live_video():
     cap = cv2.VideoCapture(0)
     ret, image0 = cap.read()
@@ -335,6 +421,7 @@ def test_with_live_video():
         cv2.drawMarker(image1, (x0, y0), (255, 0, 255), markerSize=5)
         cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/live_video_results/result' + str(i) + '.jpg',
                     image1)
+
 
 def print_distance(eye_distances):
     print(eye_distances.standard_x)
@@ -410,8 +497,9 @@ class EyesRecognizer:
 
 
 def debug_net():
-    eyes_recognizer = EyesRecognizer("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
-                                     "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
+    eyes_recognizer = EyesRecognizer(
+        "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
+        "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
 
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
@@ -445,6 +533,10 @@ def debug_net():
         print(eye_distances.pupil_angle)
         print(eye_distances.left_corner_angle)
         print(eye_distances.right_corner_angle)
+
+        print('triangle angles')
+        print(eye_distances.left_eye.left_angle)
+        print(eye_distances.left_eye.right_angle)
         # print_distance(eye_distances)
 
         while True:
@@ -539,7 +631,7 @@ def load_my_image_data(patient_name):
     filenames.remove('annotations.txt')
     filenames.remove('annotationscopy.txt')
     filenames.remove('.DS_Store')
-    images = [np.array(Image.open(os.path.join(data_folder, filename))) for filename in filenames]
+    images = [np.array(ImageEdit.open(os.path.join(data_folder, filename))) for filename in filenames]
 
     return images, points
 
@@ -593,11 +685,15 @@ def create_my_dataset():
             if eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1] > 14:
                 cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/23/' + str(j) + '.jpg', frame)
                 annotations.write(
-                    str(eye_distances.left_eye.left_corner[1]) + ' ' + str(eye_distances.left_eye.left_corner[0]) + ' ' +
-                    str(eye_distances.left_eye.right_corner[1]) + ' ' + str(eye_distances.left_eye.right_corner[0]) + ' ' +
+                    str(eye_distances.left_eye.left_corner[1]) + ' ' + str(
+                        eye_distances.left_eye.left_corner[0]) + ' ' +
+                    str(eye_distances.left_eye.right_corner[1]) + ' ' + str(
+                        eye_distances.left_eye.right_corner[0]) + ' ' +
                     str(eye_distances.left_eye.pupil[1]) + ' ' + str(eye_distances.left_eye.pupil[0]) + ' ' +
-                    str(eye_distances.right_eye.right_corner[1]) + ' ' + str(eye_distances.right_eye.right_corner[0]) + ' ' +
-                    str(eye_distances.right_eye.left_corner[1]) + ' ' + str(eye_distances.right_eye.left_corner[0]) + ' ' +
+                    str(eye_distances.right_eye.right_corner[1]) + ' ' + str(
+                        eye_distances.right_eye.right_corner[0]) + ' ' +
+                    str(eye_distances.right_eye.left_corner[1]) + ' ' + str(
+                        eye_distances.right_eye.left_corner[0]) + ' ' +
                     str(eye_distances.right_eye.pupil[1]) + ' ' + str(eye_distances.right_eye.pupil[0]) + '\n')
                 j += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
