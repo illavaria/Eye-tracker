@@ -127,11 +127,11 @@ class ImageEdit():
 
     @staticmethod
     def image_to_RGB(image):
-        cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     @staticmethod
     def resize_image(image, image_shape):
-        cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+        return cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
 
 
 
