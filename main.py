@@ -188,7 +188,7 @@ class EyeDistances:
     def get_angle(dot1, dot2):
         return math.atan((dot1[1] - dot2[1]) / (dot1[0] - dot2[0])) * 180 / math.pi
 
-    def get_distances(self, eye):
+    def get_distances_for_one_eye(self, eye):
         eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
                              (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
         eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
@@ -206,8 +206,8 @@ class EyeDistances:
         self.right_corner_angle = self.get_angle(self.left_eye.right_corner, self.right_eye.right_corner)
         self.left_corner_angle = self.get_angle(self.left_eye.left_corner, self.right_eye.left_corner)
 
-        self.get_distances(self.left_eye)
-        self.get_distances(self.right_eye)
+        self.get_distances_for_one_eye(self.left_eye)
+        self.get_distances_for_one_eye(self.right_eye)
 
         self.left_distance_avg_x = (self.left_eye.left_distance[0] + self.right_eye.left_distance[0]) / 2
         self.right_distance_avg_x = (self.left_eye.right_distance[0] + self.right_eye.right_distance[0]) / 2
