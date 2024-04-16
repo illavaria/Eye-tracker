@@ -433,8 +433,6 @@ def print_distance(eye_distances):
           eye_distances.right_eye.right_distance_x)
 
 
-def calculate_distance_for_eyesnet(x1, y1, x2, y2):
-    return int(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5)
 
 
 class EyesRecognizer:
@@ -445,8 +443,12 @@ class EyesRecognizer:
         self.eyesnet_right.load_state_dict(torch.load(path_right))
         self.image_shape = (16, 32)
 
+    @staticmethod
+    def calculate_distance(x1, y1, x2, y2):
+        return int(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5)
+
     def get_eye_image(self, image, corner1, corner2):
-        line_len = calculate_distance_for_eyesnet(*corner1, *corner2)
+        line_len = self.calculate_distance(*corner1, *corner2)
         corner_of_frame1 = corner1 - np.array([line_len // 4, line_len // 8])  # - np.array([5, 10])
         corner_of_frame2 = corner2 + np.array([line_len // 4, line_len // 8])  # + np.array([5, 10])
 
