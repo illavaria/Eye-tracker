@@ -98,8 +98,8 @@ class Camera:
     def write_frame(self, frame):
         cv2.imwrite(self.address_for_write, frame)
 
-    def read_frame_from_file(self):
-        return cv2.imread(self.address_for_read)
+    def read_frame_from_file(self, flags):
+        return cv2.imread(self.address_for_read, flags)
 
 
 class ImageEdit():
@@ -127,11 +127,11 @@ class ImageEdit():
 
     @staticmethod
     def image_to_RGB(image):
-        cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     @staticmethod
     def resize_image(image, image_shape):
-        cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+        return cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
 
 
 
@@ -188,7 +188,7 @@ class EyeDistances:
     def get_angle(dot1, dot2):
         return math.atan((dot1[1] - dot2[1]) / (dot1[0] - dot2[0])) * 180 / math.pi
 
-    def get_distances(self, eye):
+    def get_distances_for_one_eye(self, eye):
         eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
                              (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
         eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
@@ -206,8 +206,8 @@ class EyeDistances:
         self.right_corner_angle = self.get_angle(self.left_eye.right_corner, self.right_eye.right_corner)
         self.left_corner_angle = self.get_angle(self.left_eye.left_corner, self.right_eye.left_corner)
 
-        self.get_distances(self.left_eye)
-        self.get_distances(self.right_eye)
+        self.get_distances_for_one_eye(self.left_eye)
+        self.get_distances_for_one_eye(self.right_eye)
 
         self.left_distance_avg_x = (self.left_eye.left_distance[0] + self.right_eye.left_distance[0]) / 2
         self.right_distance_avg_x = (self.left_eye.right_distance[0] + self.right_eye.right_distance[0]) / 2
@@ -433,8 +433,6 @@ def print_distance(eye_distances):
           eye_distances.right_eye.right_distance_x)
 
 
-def calculate_distance_for_eyesnet(x1, y1, x2, y2):
-    return int(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5)
 
 
 class EyesRecognizer:
@@ -445,8 +443,12 @@ class EyesRecognizer:
         self.eyesnet_right.load_state_dict(torch.load(path_right))
         self.image_shape = (16, 32)
 
+    @staticmethod
+    def calculate_distance(x1, y1, x2, y2):
+        return int(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5)
+
     def get_eye_image(self, image, corner1, corner2):
-        line_len = calculate_distance_for_eyesnet(*corner1, *corner2)
+        line_len = self.calculate_distance(*corner1, *corner2)
         corner_of_frame1 = corner1 - np.array([line_len // 4, line_len // 8])  # - np.array([5, 10])
         corner_of_frame2 = corner2 + np.array([line_len // 4, line_len // 8])  # + np.array([5, 10])
 
