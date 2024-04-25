@@ -1,15 +1,14 @@
-from PyQt6.QtGui import QPainter, QPen, QColor, QPalette
-from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QLabel
-from PyQt6.QtCore import Qt, QPoint
-from main import EyesDetector, Camera, EyeDistances
-import cv2
+from PyQt6.QtGui import QColor, QPalette
+from Interface.AbstractTab import AbstractTab
 
 
-class SettingsTab(QWidget):
-    def __init__(self):
-        super().__init__()
+class SettingsTab(AbstractTab):
+    def __init__(self, parent_class, tab_name):
+        super().__init__(parent_class, tab_name)
         self.setAutoFillBackground(True)
 
         palette = self.palette()
         palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 0))
         self.setPalette(palette)
+    def tab_selected(self):
+        return

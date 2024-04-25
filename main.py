@@ -82,6 +82,9 @@ class Camera:
         self.address_for_write = address_for_write
         self.address_for_read = address_for_read
 
+    def is_capturing(self):
+        return False if self.capture is None else True
+
     def read_frame(self):
         if self.capture is None:
             return None
@@ -94,12 +97,13 @@ class Camera:
 
     def stop_capture(self):
         self.capture.release()
+        self.capture = None
 
     def write_frame(self, frame):
         cv2.imwrite(self.address_for_write, frame)
 
-    def read_frame_from_file(self, flags):
-        return cv2.imread(self.address_for_read, flags)
+    def read_frame_from_file(self):
+        return cv2.imread(self.address_for_read)
 
 
 class ImageEdit():
@@ -127,11 +131,11 @@ class ImageEdit():
 
     @staticmethod
     def image_to_RGB(image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     @staticmethod
     def resize_image(image, image_shape):
-        return cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+        cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
 
 
 
@@ -150,6 +154,21 @@ class ImageEdit():
 #
 # cap.release()
 # cv2.destroyWindow()
+
+
+class ImagesLoader():
+    def __init__(self, folder, non_images_files):
+        self.folder_path = folder
+        self.non_images_files = non_images_files
+
+    def load_images(self):
+        files = os.listdir(self.folder_path)
+        for f in self.non_images_files:
+            files.remove(f)
+
+        files.sort()
+        images = [np.array(Image.open(os.path.join(self.folder_path, file))) for file in files]
+        return images
 
 class Eye:
     # x - 0, y - 1
@@ -193,11 +212,13 @@ class EyeDistances:
                              (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
         eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
                               (eye.pupil[1] - eye.right_corner[1] / self.standard_x)]
-        rclc_angle = self.get_angle(eye.left_corner, eye.right_corner)
-        eye.left_angle = self.get_angle(eye.left_corner, eye.pupil) - rclc_angle
-        eye.right_angle = rclc_angle - self.get_angle(eye.right_corner, eye.pupil)
-        big_angle = self.get_angle(eye.right_corner, eye.pupil) - self.get_angle(eye.left_corner, eye.pupil)
-        print(big_angle)
+        rclc_angle = self.get_angle(eye.right_corner, eye.left_corner)
+        lcp = self.get_angle(eye.pupil, eye.left_corner)
+        eye.left_angle = lcp + rclc_angle
+        rcp = 0 - self.get_angle(eye.right_corner, eye.pupil)
+        eye.right_angle = rcp - rclc_angle
+        big_angle = 180 - rcp - lcp
+        # print(big_angle)
 
     def get_distance(self):
         self.standard_x = self.left_eye.pupil[0] - self.right_eye.pupil[0]
@@ -433,6 +454,8 @@ def print_distance(eye_distances):
           eye_distances.right_eye.right_distance_x)
 
 
+def calculate_distance_for_eyesnet(x1, y1, x2, y2):
+    return int(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5)
 
 
 class EyesRecognizer:
@@ -505,7 +528,10 @@ def debug_net():
 
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
-    frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
+    image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_not_moving_pupils_much', [])
+    images = image_loader.load_images()
+    frame = images[0]
+    # frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
     results = eye_detector.get_face_mesh_results(frame)
     eye_detector.get_eyes_coordinates(results, frame, eye_distances)
     # plt.imshow(frame)
@@ -514,8 +540,7 @@ def debug_net():
     # plt.scatter(eye_distances.left_eye.outside[0], eye_distances.left_eye.outside[1], c="r")
     # plt.show()
     for i in range(1, 20):
-        frame = cv2.imread(
-            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result' + str(i) + '.jpg', 0)
+        frame = images[i]
         if i % 6 == 0:
             results = eye_detector.get_face_mesh_results(frame)
             eye_detector.get_eyes_coordinates(results, frame, eye_distances)
@@ -537,8 +562,13 @@ def debug_net():
         print(eye_distances.right_corner_angle)
 
         print('triangle angles')
+        print('left:')
         print(eye_distances.left_eye.left_angle)
         print(eye_distances.left_eye.right_angle)
+        print('right:')
+        print(eye_distances.right_eye.left_angle)
+        print(eye_distances.right_eye.right_angle)
+        print(' ')
         # print_distance(eye_distances)
 
         while True:
@@ -550,7 +580,7 @@ def debug_net():
 
 
 # main()
-debug_net()
+# debug_net()
 
 
 # cap = cv2.VideoCapture(0)
@@ -627,13 +657,8 @@ def load_my_image_data(patient_name):
 
     points = np.array(annotation.loc[:, list(range(0, 12))])
     print(points)
-
-    filenames = os.listdir(data_folder)
-    filenames.sort()
-    filenames.remove('annotations.txt')
-    filenames.remove('annotationscopy.txt')
-    filenames.remove('.DS_Store')
-    images = [np.array(ImageEdit.open(os.path.join(data_folder, filename))) for filename in filenames]
+    image_loader = ImagesLoader(data_folder, ['annotationscopy.txt', 'annotations.txt', '.DS_Store'])
+    images = image_loader.load_images()
 
     return images, points
 
@@ -665,6 +690,8 @@ def get_my_image_data(images, points):
         if any(right_pupil < 0) or any(left_pupil < 0):
             continue
 
+# images, pupils = load_my_image_data('15')
+# get_my_image_data(images, pupils)
 
 def create_my_dataset():
     cap = cv2.VideoCapture(0)
@@ -673,7 +700,7 @@ def create_my_dataset():
 
     ret, frame = cap.read()
     ret, frame = cap.read()
-    annotations = open('/Users/illaria/BSUIR/Diploma/mydataset/23/annotations.txt', 'x')
+    annotations = open('/Users/illaria/BSUIR/Diploma/mydataset/22/annotations.txt', 'x')
     j = 0
     for i in range(200):
         ret, frame = cap.read()
@@ -682,10 +709,10 @@ def create_my_dataset():
         cv2.imshow('eyes', frame)
         if i % 2 == 0:
             results = eye_detector.get_face_mesh_results(frame)
-            eye_distances = eye_detector.get_eyes_coordinates(results, frame, eye_distances)
+            eye_detector.get_eyes_coordinates(results, frame, eye_distances)
             print(eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1])
             if eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1] > 14:
-                cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/23/' + str(j) + '.jpg', frame)
+                cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/22/' + str(j) + '.jpg', frame)
                 annotations.write(
                     str(eye_distances.left_eye.left_corner[1]) + ' ' + str(
                         eye_distances.left_eye.left_corner[0]) + ' ' +

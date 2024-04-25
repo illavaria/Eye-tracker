@@ -1,13 +1,15 @@
 from PyQt6.QtGui import QPainter, QPen, QColor
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow
-from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtCore import Qt, QPoint, QTimer
+
+from Interface.AbstractTab import AbstractTab
 from main import EyesDetector, Camera, EyeDistances
 import cv2
 
 
-class CalibrationTab(QWidget):
-    def __init__(self):
-        super().__init__()
+class CalibrationTab(AbstractTab):
+    def __init__(self, parent_class, tab_name):
+        super().__init__(parent_class, tab_name)
         self.screen_size = self.screen().size()
         self.point_size = 10
         self.half_point_size = self.point_size / 2
@@ -26,8 +28,7 @@ class CalibrationTab(QWidget):
         ]
         self.counter = 0
         self.eye_detector = EyesDetector()
-        self.camera = Camera(0, '', '')
-        self.camera.start_capture()
+        self.camera = parent_class.camera
         self.eye_distances = EyeDistances()
 
     def paintEvent(self, event):
@@ -38,7 +39,6 @@ class CalibrationTab(QWidget):
         pen.setWidth(12)
         painter.setPen(pen)
         painter.drawPoint(self.points[self.counter])
-
 
     def mousePressEvent(self, event):
         if self.counter > 8:
@@ -57,3 +57,6 @@ class CalibrationTab(QWidget):
             self.eye_detector.get_eyes_coordinates(results, frame, self.eye_distances)
             print(self.eye_distances.distance_percentage_x)
             self.update()
+
+    def tab_selected(self):
+        self.camera.start_capture()
