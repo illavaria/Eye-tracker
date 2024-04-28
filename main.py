@@ -1,3 +1,4 @@
+import enum
 import math
 
 import cv2
@@ -521,6 +522,29 @@ class EyesRecognizer:
         eye_distances.get_distance()
 
 
+class Direction (enum.Enum):
+    forward = 'forward'
+    left = 'left'
+    right = 'right'
+    up = 'up'
+    down = 'down'
+
+
+class GazeDirectionPrediction:
+    def __init__(self):
+        self.left_threshold = 0.8
+        self.right_threshold = 1.2
+        self.up_threshold = 20.0
+        self.down_threshold = 3.0
+
+    def predict(self, eye_distances):
+        if eye_distances.distance_percentage_x < self.left_threshold:
+            return Direction.left
+        elif eye_distances.distance_percentage_x > self.right_threshold:
+            return Direction.right
+        else:
+            return Direction.forward
+
 def debug_net():
     eyes_recognizer = EyesRecognizer(
         "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
@@ -700,7 +724,7 @@ def create_my_dataset():
 
     ret, frame = cap.read()
     ret, frame = cap.read()
-    annotations = open('/Users/illaria/BSUIR/Diploma/mydataset/22/annotations.txt', 'x')
+    annotations = open('/Users/illaria/BSUIR/Diploma/mydataset/24/annotations.txt', 'x')
     j = 0
     for i in range(200):
         ret, frame = cap.read()
@@ -712,7 +736,7 @@ def create_my_dataset():
             eye_detector.get_eyes_coordinates(results, frame, eye_distances)
             print(eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1])
             if eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1] > 14:
-                cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/22/' + str(j) + '.jpg', frame)
+                cv2.imwrite('/Users/illaria/BSUIR/Diploma/mydataset/24/' + str(j) + '.jpg', frame)
                 annotations.write(
                     str(eye_distances.left_eye.left_corner[1]) + ' ' + str(
                         eye_distances.left_eye.left_corner[0]) + ' ' +
