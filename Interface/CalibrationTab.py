@@ -1,9 +1,9 @@
 from PyQt6.QtGui import QPainter, QPen, QColor
-from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow
+from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QPoint, QTimer
 
 from Interface.AbstractTab import AbstractTab
-from main import EyesDetector, Camera, EyeDistances
+from main import EyesDetector, Camera, EyeDistances, EyesRecognizer, ImageEdit
 import cv2
 
 
@@ -27,9 +27,15 @@ class CalibrationTab(AbstractTab):
             QPoint(self.half_point_size, self.screen_size.height() / 2)
         ]
         self.counter = 0
-        self.eye_detector = EyesDetector()
+        self.eye_detector = parent_class.eye_detector
+        self.eyes_recognizer = parent_class.eyes_recognizer
         self.camera = parent_class.camera
         self.eye_distances = EyeDistances()
+        self.screen_params_list = [parent_class.cheating_detection.lct, parent_class.cheating_detection.bm,
+                                   parent_class.cheating_detection.rm, parent_class.cheating_detection.lcb,
+                                   parent_class.cheating_detection.tm, parent_class.cheating_detection.rcb,
+                                   parent_class.cheating_detection.middle, parent_class.cheating_detection.rct,
+                                   parent_class.cheating_detection.lm]
 
     def paintEvent(self, event):
         if self.counter > 8:
@@ -46,17 +52,22 @@ class CalibrationTab(AbstractTab):
         click_pos = event.position().toPoint()
         if (click_pos - self.points[self.counter]).manhattanLength() <= 10:
             print(f"point clicked at: {click_pos.x()}, {click_pos.y()}")
-            self.counter += 1
-            # if self.counter == 9:
-            #     self.close()
 
             frame = self.camera.read_frame()
-            hvs = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            frame = hvs
-            results = self.eye_detector.get_face_mesh_results(frame)
-            self.eye_detector.get_eyes_coordinates(results, frame, self.eye_distances)
-            print(self.eye_distances.distance_percentage_x)
+            frame = ImageEdit.split_image(frame)
+            try:
+                results = self.eye_detector.get_face_mesh_results(frame)
+                self.eye_detector.get_eyes_coordinates(results, frame, self.screen_params_list[self.counter])
+                self.eyes_recognizer.get_eyes_coordinates(frame, self.screen_params_list[self.counter])
+            except Exception as e:
+                QMessageBox.critical(self, "Face detection error", "Don't hide the face")
+                return
+
+            self.counter += 1
+            if self.counter == 9:
+                QMessageBox.information(self, "Calibration over", "Calibration is finished, you can go to other tabs")
             self.update()
 
     def tab_selected(self):
         self.camera.start_capture()
+        self.counter = 0

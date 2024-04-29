@@ -117,12 +117,12 @@ class ImageEdit():
 
     @staticmethod
     def draw_on_image(image, position, color, marker_size=default_marker_size):
-        cv2.drawMarker(image, position, color, marker_size)
+        return cv2.drawMarker(image, position, color, marker_size)
 
     @staticmethod
     def put_text_on_image(image, position, text, font=default_text_font, font_scale=default_text_font_scale,
                           color=default_text_color, thickness=default_text_thickness):
-        cv2.putText(image, text, position, font, font_scale, color, thickness)
+        return cv2.putText(image, text, position, font, font_scale, color, thickness)
 
     @staticmethod
     def split_image(image):
@@ -132,11 +132,15 @@ class ImageEdit():
 
     @staticmethod
     def image_to_RGB(image):
-        cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     @staticmethod
     def resize_image(image, image_shape):
-        cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+        return cv2.resize(image, image_shape, interpolation=cv2.INTER_AREA)
+
+    @staticmethod
+    def flip_image(image):
+        return cv2.flip(image, 1)
 
 
 
@@ -188,8 +192,8 @@ class Eye:
         cv2.drawMarker(frame, (self.pupil[0], self.pupil[1]), (255, 255, 0), markerSize=5)
         cv2.drawMarker(frame, (self.left_corner[0], self.left_corner[1]), (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, (self.right_corner[0], self.right_corner[1]), (255, 0, 255), markerSize=5)
-        cv2.drawMarker(frame, (self.top[0], self.top[1]), (255, 0, 255), markerSize=5)
-        cv2.drawMarker(frame, (self.bottom[0], self.bottom[1]), (255, 0, 255), markerSize=5)
+        # cv2.drawMarker(frame, (self.top[0], self.top[1]), (255, 0, 255), markerSize=5)
+        # cv2.drawMarker(frame, (self.bottom[0], self.bottom[1]), (255, 0, 255), markerSize=5)
         return frame
 
 
@@ -197,9 +201,9 @@ class EyeDistances:
     def __init__(self):
         self.left_eye = Eye()
         self.right_eye = Eye()
-        self.standard_x = 0
-        self.left_distance_avg_x, self.right_distance_avg_x = 0, 0
-        self.distance_percentage_x = 0  # left/right
+        self.standard_x = 0.0
+        self.left_distance_avg_x, self.right_distance_avg_x = 0.0, 0.0
+        self.distance_percentage_x = 0.0  # left/right
         self.pupil_angle = 0.0
         self.right_corner_angle = 0.0
         self.left_corner_angle = 0.0
@@ -235,6 +239,10 @@ class EyeDistances:
         self.right_distance_avg_x = (self.left_eye.right_distance[0] + self.right_eye.right_distance[0]) / 2
 
         self.distance_percentage_x = self.left_distance_avg_x / self.right_distance_avg_x
+
+    def draw(self, frame):
+        frame = self.left_eye.draw(frame)
+        return self.right_eye.draw(frame)
 
 
 class EyesDetector:
@@ -275,38 +283,23 @@ class EyesDetector:
             eye_distances.get_distance()
 
 
-class CalibrationData:
-    # Left corner top
-    lct_left_eye, lct_right_eye = Eye(), Eye()
-    tc_left_eye, tc_right_eye = Eye(), Eye()
-    rct_left_eye, rct_right_eye = Eye(), Eye()
-
+class CheatingDetection:
     def __init__(self):
-        i = 0
-        cap = cv2.VideoCapture(0)
-        eyeDetector = EyesDetector()
+        self.lct = EyeDistances()
+        self.tm = EyeDistances()
+        self.rct = EyeDistances()
+        self.rm = EyeDistances()
+        self.lm = EyeDistances()
+        self.middle = EyeDistances()
+        self.lcb = EyeDistances()
+        self.bm = EyeDistances()
+        self.rcb = EyeDistances()
 
-        while True:
-            ret, frame = cap.read()
-            # results = eyeDetector.get_face_mesh_results(frame)
-            # if not results.multi_face_landmarks:
-            #     continue
-            # eyeDetector.get_eyes_coordinates(results, frame)
-            # frame_right_eye = eyeDetector.right_eye.draw(frame)
-            # result_frame = eyeDetector.left_eye.draw(frame_right_eye)
-            # result_frame = cv2.flip(result_frame, 1)
-            cv2.imshow('calibrate eyes', frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('a'):
-                # lct_left_eye, lct_right_eye = eyeDetector.left_eye, eyeDetector.right_eye
-                cv2.imwrite('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/calibration/result' + str(i) + '.jpg',
-                            frame)
-                i += 1
-                # cap.release()
-                # cv2.destroyWindow('calibrate eyes')
-                # cv2.destroyAllWindows()
-                if i == 9:
-                    break
+    def predict(self, eye_distances):
+        if eye_distances.distance_percentage_x < self.lm.distance_percentage_x:
+            return True, Direction.left
+        else:
+            return False, Direction.forward
 
 
 def predefine(eyeDetector):
@@ -322,27 +315,6 @@ def predefine(eyeDetector):
     eye_left_x = eyeDetector.left_eye.right_corner[0] - eyeDetector.left_eye.left_corner[0]
     cap.release()
     return eye_difference, eye_right_x, eye_left_x, eyeDetector.left_eye, frame
-
-
-def contrast(image):
-    # image = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/left_eye3/result0.jpg', 1)
-    # cv2.imshow("Original image", image)
-
-    # CLAHE (Contrast Limited Adaptive Histogram Equalization)
-    clahe = cv2.createCLAHE(clipLimit=60., tileGridSize=(6, 6))
-
-    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)  # convert from BGR to LAB color space
-    l, a, b = cv2.split(lab)  # split on 3 different channels
-
-    l2 = clahe.apply(l)  # apply CLAHE to the L-channel
-
-    lab = cv2.merge((l2, a, b))  # merge channels
-    img2 = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)  # convert from LAB to BGR
-    return img2
-    # cv2.imshow('Increased contrast', img2)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
 
 def fixate(image0, x0, y0, image1):
     n = 7
@@ -533,7 +505,7 @@ class Direction (enum.Enum):
 class GazeDirectionPrediction:
     def __init__(self):
         self.left_threshold = 0.8
-        self.right_threshold = 1.2
+        self.right_threshold = 1.25
         self.up_threshold = 20.0
         self.down_threshold = 3.0
 

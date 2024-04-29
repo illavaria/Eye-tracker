@@ -7,7 +7,7 @@ import cv2
 from main import EyesDetector, EyeDistances, ImageEdit, GazeDirectionPrediction, EyesRecognizer
 
 
-class GazeDirectionTab(AbstractTab):
+class CheatingDetectionTab(AbstractTab):
     def __init__(self, parent_class, tab_name):
         super().__init__(parent_class, tab_name)
         self.camera = parent_class.camera
@@ -16,12 +16,14 @@ class GazeDirectionTab(AbstractTab):
         self.text_label = QLabel(self)
         self.direction_label = QLabel(self)
         self.exception_label = QLabel(self)
-        self.radio_button = QRadioButton('Draw Dots', self)
+        self.radio_button = QRadioButton('Draw dots', self)
+
+        self.radio_button.setChecked(False)
 
         self.eye_detector = parent_class.eye_detector
         self.eyes_recognizer = parent_class.eyes_recognizer
         self.eye_distances = EyeDistances()
-        self.gaze_prediction = GazeDirectionPrediction()
+        self.cheating_detection = parent_class.cheating_detection
         self.counter = 0
 
         empty_label = QLabel(self)
@@ -55,17 +57,17 @@ class GazeDirectionTab(AbstractTab):
         if frame is not None:
             hvs = ImageEdit.split_image(frame)
             image = ImageEdit.image_to_RGB(frame)
+
             try:
                 if self.counter % 5 == 0:
                     results = self.eye_detector.get_face_mesh_results(hvs)
                     self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
 
                 self.eyes_recognizer.get_eyes_coordinates(hvs, self.eye_distances)
-                self.exception_label.setText('')
             except Exception as e:
                 self.exception_label.setText("Don't hide the face")
-            direction = self.gaze_prediction.predict(self.eye_distances)
-            self.direction_label.setText(direction.value)
+            direction = self.cheating_detection.predict(self.eye_distances)
+            self.direction_label.setText(direction[1].value)
             if self.radio_button.isChecked():
                 image = self.eye_distances.draw(image)
             image = ImageEdit.flip_image(image)
@@ -83,4 +85,6 @@ class GazeDirectionTab(AbstractTab):
             self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
         self.timer.start(30)
         self.counter = 0
+        print(self.cheating_detection.lct.distance_percentage_x)
+        print(self.cheating_detection.bm.distance_percentage_x)
 

@@ -1,8 +1,9 @@
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget
 from Interface.CalibrationTab import CalibrationTab
+from Interface.CheatingDetectionTab import CheatingDetectionTab
 from Interface.GazeDirectionTab import GazeDirectionTab
 from Interface.SettingsTab import SettingsTab
-from main import Camera
+from main import Camera, CheatingDetection, EyesDetector, EyesRecognizer
 
 
 class MainWindow(QMainWindow):
@@ -18,10 +19,17 @@ class MainWindow(QMainWindow):
         self.camera = Camera(0, '', '')
         self.tab_using_camera = 0
 
+        self.cheating_detection = CheatingDetection()
+        self.eye_detector = EyesDetector()
+        self.eyes_recognizer = EyesRecognizer(
+            "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
+            "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
+
         self.tabs_list = [
             SettingsTab(self, "Settings"),
             CalibrationTab(self, "Calibration"),
-            GazeDirectionTab(self,"Gaze Direction")
+            GazeDirectionTab(self, "Gaze Direction"),
+            CheatingDetectionTab(self, "Cheating Detection")
         ]
 
         self.tabs = QTabWidget()
@@ -33,9 +41,6 @@ class MainWindow(QMainWindow):
             self.tabs.addTab(tab, tab.tab_name)
 
         self.setCentralWidget(self.tabs)
-
-
-
 
     def moveEvent(self, event):
         if event.pos() != self.initial_position:
