@@ -10,7 +10,7 @@ import cv2
 class CalibrationTab(AbstractTab):
     def __init__(self, parent_class, tab_name):
         super().__init__(parent_class, tab_name)
-        self.screen_size = self.screen().size()
+        self.screen_size = parent_class.screen_size
         self.point_size = 10
         self.half_point_size = self.point_size / 2
         self.screen_size.setHeight(self.screen_size.height() - 90)
@@ -65,6 +65,7 @@ class CalibrationTab(AbstractTab):
 
             self.counter += 1
             if self.counter == 9:
+                self.parent_class.calibration_taken = True
                 QMessageBox.information(self, "Calibration over", "Calibration is finished, you can go to other tabs")
             self.update()
 

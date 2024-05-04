@@ -79,8 +79,12 @@ class GazeDirectionTab(AbstractTab):
         frame = self.camera.read_frame()
         if frame is not None:
             hvs = ImageEdit.split_image(frame)
-            results = self.eye_detector.get_face_mesh_results(hvs)
-            self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
+            try:
+                results = self.eye_detector.get_face_mesh_results(hvs)
+                self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
+            except Exception as e:
+                self.exception_label.setText("Don't hide the face")
+
         self.timer.start(30)
         self.counter = 0
 

@@ -64,6 +64,7 @@ class CheatingDetectionTab(AbstractTab):
                     self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
 
                 self.eyes_recognizer.get_eyes_coordinates(hvs, self.eye_distances)
+                self.exception_label.setText('')
             except Exception as e:
                 self.exception_label.setText("Don't hide the face")
             direction = self.cheating_detection.predict(self.eye_distances)
@@ -81,8 +82,11 @@ class CheatingDetectionTab(AbstractTab):
         frame = self.camera.read_frame()
         if frame is not None:
             hvs = ImageEdit.split_image(frame)
-            results = self.eye_detector.get_face_mesh_results(hvs)
-            self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
+            try:
+                results = self.eye_detector.get_face_mesh_results(hvs)
+                self.eye_detector.get_eyes_coordinates(results, hvs, self.eye_distances)
+            except Exception as e:
+                self.exception_label.setText("Don't hide the face")
         self.timer.start(30)
         self.counter = 0
         print(self.cheating_detection.lct.distance_percentage_x)

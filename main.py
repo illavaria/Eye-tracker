@@ -76,12 +76,10 @@ class EyesNet(nn.Module):
 
 
 class Camera:
-    def __init__(self, camera_number, address_for_write, address_for_read):
+    def __init__(self, camera_number):
         self.camera_number = camera_number
         # add checks
         self.capture = None
-        self.address_for_write = address_for_write
-        self.address_for_read = address_for_read
 
     def is_capturing(self):
         return False if self.capture is None else True
@@ -100,12 +98,44 @@ class Camera:
         self.capture.release()
         self.capture = None
 
-    def write_frame(self, frame):
-        cv2.imwrite(self.address_for_write, frame)
+    @staticmethod
+    def write_frame(frame, address_for_write):
+        cv2.imwrite(address_for_write, frame)
 
-    def read_frame_from_file(self):
-        return cv2.imread(self.address_for_read)
+    @staticmethod
+    def read_frame_from_file(address_for_read):
+        return cv2.imread(address_for_read)
 
+    @staticmethod
+    def get_camera_name_from_port(port):
+        cap = cv2.VideoCapture(port)
+        if cap.isOpened():
+            _, frame = cap.read()
+            cap.release()
+            return f"Port {port}: {frame.shape[1]}x{frame.shape[0]}"
+        else:
+            return "No camera"
+
+    @staticmethod
+    def get_camera_names(ports):
+        result = []
+        for port in ports:
+            result.append(Camera.get_camera_name_from_port(port))
+        return result
+
+    @staticmethod
+    def list_ports():
+        index = 0
+        ports = []
+        while True:
+            cap = cv2.VideoCapture(index)
+            if not cap.read()[0]:
+                break
+            else:
+                ports.append(index)
+            cap.release()
+            index += 1
+        return ports
 
 class ImageEdit():
     default_marker_size = 5
@@ -524,7 +554,7 @@ def debug_net():
 
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
-    image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_not_moving_pupils_much', [])
+    image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_gaze_on_screen', [])
     images = image_loader.load_images()
     frame = images[0]
     # frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
@@ -537,10 +567,13 @@ def debug_net():
     # plt.show()
     for i in range(1, 20):
         frame = images[i]
-        if i % 6 == 0:
+        if i % 3 == 0:
             results = eye_detector.get_face_mesh_results(frame)
             eye_detector.get_eyes_coordinates(results, frame, eye_distances)
+        # start_time = time.time()
         eyes_recognizer.get_eyes_coordinates(frame, eye_distances)
+        # end_time = time.time()
+        # print(end_time - start_time)
         cv2.drawMarker(frame, eye_distances.left_eye.pupil, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.left_eye.left_corner, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.left_eye.right_corner, (255, 0, 255), markerSize=5)
@@ -549,30 +582,30 @@ def debug_net():
         cv2.drawMarker(frame, eye_distances.right_eye.left_corner, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.right_corner, (255, 0, 255), markerSize=5)
         cv2.imshow('frame', frame)
-        print(i)
+        # print(i)
         # print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
-        # print(eye_distances.distance_percentage_x)
-        print('angles:')
-        print(eye_distances.pupil_angle)
-        print(eye_distances.left_corner_angle)
-        print(eye_distances.right_corner_angle)
-
-        print('triangle angles')
-        print('left:')
-        print(eye_distances.left_eye.left_angle)
-        print(eye_distances.left_eye.right_angle)
-        print('right:')
-        print(eye_distances.right_eye.left_angle)
-        print(eye_distances.right_eye.right_angle)
-        print(' ')
+        # # print(eye_distances.distance_percentage_x)
+        # print('angles:')
+        # print(eye_distances.pupil_angle)
+        # print(eye_distances.left_corner_angle)
+        # print(eye_distances.right_corner_angle)
+        #
+        # print('triangle angles')
+        # print('left:')
+        # print(eye_distances.left_eye.left_angle)
+        # print(eye_distances.left_eye.right_angle)
+        # print('right:')
+        # print(eye_distances.right_eye.left_angle)
+        # print(eye_distances.right_eye.right_angle)
+        # print(' ')
         # print_distance(eye_distances)
 
-        while True:
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        # cv2.imwrite(
-        #     '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/mynet_myds_fixed_up_down_plus_google/result' + str(
-        #         i) + '.jpg', frame)
+        # while True:
+        #     if cv2.waitKey(1) & 0xFF == ord('q'):
+        #         break
+        cv2.imwrite(
+            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/mynet_photos_up_down_no_last_coordinate/result' + str(
+                i) + '.jpg', frame)
 
 
 # main()
@@ -581,15 +614,19 @@ def debug_net():
 
 # cap = cv2.VideoCapture(0)
 # while True:
+#     start_time = time.time()
 #     ret, frame = cap.read()
-#     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#     # ret, frame = cv2.threshold(frame, 127, 255, 0)
-#     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-#     _, _, frame = cv2.split(hsv)
-#     cv2.imshow('eyes', frame)
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-#
+#     end_time = time.time()
+#     print(end_time - start_time)
+
+    # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # ret, frame = cv2.threshold(frame, 127, 255, 0)
+    # hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    # _, _, frame = cv2.split(hsv)
+    # cv2.imshow('eyes', frame)
+    # if cv2.waitKey(1) & 0xFF == ord('q'):
+    #     break
+
 # cap.release()
 # cv2.destroyWindow()
 

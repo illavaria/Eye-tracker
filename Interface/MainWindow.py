@@ -12,14 +12,15 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Eye Tracker")
-        screen_size = self.screen().size()
-        self.setFixedSize(screen_size)
+        self.screen_size = self.screen().size()
+        self.setFixedSize(self.screen_size)
         self.initial_position = self.pos()
 
-        self.camera = Camera(0, '', '')
+        self.camera = Camera(0)
         self.tab_using_camera = 0
 
         self.cheating_detection = CheatingDetection()
+        self.calibration_taken = False
         self.eye_detector = EyesDetector()
         self.eyes_recognizer = EyesRecognizer(
             "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
@@ -49,7 +50,7 @@ class MainWindow(QMainWindow):
     def tab_changed(self, index: int) -> None:
         if self.camera.is_capturing():
             self.camera.stop_capture()
-            if self.tab_using_camera == 3 or self.tab_using_camera == 4:
+            if self.tab_using_camera == 2 or self.tab_using_camera == 3:
                 self.tabs_list[self.tab_using_camera].timer.stop()
 
         self.tabs_list[index].tab_selected()
