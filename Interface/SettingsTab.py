@@ -1,3 +1,4 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QHBoxLayout, QComboBox, QLabel, QPushButton, QBoxLayout, QVBoxLayout, QMessageBox
 
@@ -13,7 +14,10 @@ class SettingsTab(AbstractTab):
         self.eyes_recognizer = self.parent_class.eyes_recognizer
         self.calibration_label = QLabel(self)
         self.calibration_label.setText('Calibration status: not taken')
+        self.calibration_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.model_loaded_label = QLabel(self)
+        self.model_loaded_label.setFixedHeight(35)
+        self.model_loaded_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         if self.eyes_recognizer.is_loaded:
             self.model_loaded_label.setText(f'Model is loaded, version: {self.parent_class.model_version}')
         else:
@@ -39,7 +43,7 @@ class SettingsTab(AbstractTab):
         self.download_version_button.clicked.connect(self.onDownloadVersionPressed)
 
         cloud_layout = QHBoxLayout()
-        cloud_layout.addWidget(QLabel("Model's versions for download:"))
+        cloud_layout.addWidget(QLabel("Model's versions available for download:"))
         cloud_layout.addWidget(self.download_versions_combobox)
         cloud_layout.addWidget(self.download_version_button)
 
@@ -78,8 +82,15 @@ class SettingsTab(AbstractTab):
         print(version_id)
         if self.cloud_manager.download_files_from_folder(version_id, version_name):
             QMessageBox.information(self, "Download finished", f"Downloaded model version {chosen_version['name']} successfully.")
+        self.loaded_versions = ModelFileManager.get_loaded_versions()
+        self.loaded_versions_combobox.clear()
+        self.loaded_versions_combobox.addItems(self.loaded_versions)
 
     def onLoadVersionPressed(self):
+        if len(self.loaded_versions) == 0:
+            QMessageBox.warning(self, 'No downloaded model', "There aren't any downloaded models on the device. "
+                                                             "Please download a model then try to load it.")
+            return
         chosen_version = self.loaded_versions[self.loaded_versions_combobox.currentIndex()]
         self.eyes_recognizer.load_state(chosen_version + '_left.pth', chosen_version + '_right.pth')
         self.parent_class.model_version = chosen_version

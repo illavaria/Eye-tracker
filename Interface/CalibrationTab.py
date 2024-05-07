@@ -70,5 +70,9 @@ class CalibrationTab(AbstractTab):
             self.update()
 
     def tab_selected(self):
+        if not self.eyes_recognizer.is_loaded:
+            QMessageBox.warning(self, 'No loaded model', "There aren't any downloaded models on the device. Please go "
+                                                         "to settings tab and download a model.")
+            return
         self.camera.start_capture()
         self.counter = 0
