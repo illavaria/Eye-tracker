@@ -1,5 +1,8 @@
+import os
+
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget
 
+from ModelFileManager import ModelFileManager
 from GoogleCloudStorage import GoogleCloudStorage
 from Interface.CalibrationTab import CalibrationTab
 from Interface.CheatingDetectionTab import CheatingDetectionTab
@@ -27,8 +30,11 @@ class MainWindow(QMainWindow):
         self.calibration_taken = False
         self.eye_detector = EyesDetector()
         self.eyes_recognizer = EyesRecognizer()
-        self.eyes_recognizer.load_state("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
-            "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
+        self.model_version = ''
+        is_loaded, self.model_version, model_files = ModelFileManager.get_latest_model_if_exists()
+        if is_loaded:
+            self.eyes_recognizer.load_state(model_files['left'], model_files['right'])
+        print(self.eyes_recognizer.is_loaded)
 
         self.tabs_list = [
             SettingsTab(self, "Settings"),
@@ -59,8 +65,6 @@ class MainWindow(QMainWindow):
 
         self.tabs_list[index].tab_selected()
         self.tab_using_camera = index
-
-
 
 
 app = QApplication([])
