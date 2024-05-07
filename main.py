@@ -462,12 +462,16 @@ def calculate_distance_for_eyesnet(x1, y1, x2, y2):
 
 
 class EyesRecognizer:
-    def __init__(self, path_left, path_right):
+    def __init__(self):
         self.eyesnet_left = EyesNet()
-        self.eyesnet_left.load_state_dict(torch.load(path_left))
         self.eyesnet_right = EyesNet()
-        self.eyesnet_right.load_state_dict(torch.load(path_right))
+        self.is_loaded = False
         self.image_shape = (16, 32)
+
+    def load_state(self, path_left, path_right):
+        self.eyesnet_left.load_state_dict(torch.load(path_left))
+        self.eyesnet_right.load_state_dict(torch.load(path_right))
+        self.is_loaded = True
 
     @staticmethod
     def calculate_distance(x1, y1, x2, y2):

@@ -1,4 +1,6 @@
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget
+
+from GoogleCloudStorage import GoogleCloudStorage
 from Interface.CalibrationTab import CalibrationTab
 from Interface.CheatingDetectionTab import CheatingDetectionTab
 from Interface.GazeDirectionTab import GazeDirectionTab
@@ -19,11 +21,13 @@ class MainWindow(QMainWindow):
         self.camera = Camera(0)
         self.tab_using_camera = 0
 
+        self.cloud_manager = GoogleCloudStorage()
+
         self.cheating_detection = CheatingDetection()
         self.calibration_taken = False
         self.eye_detector = EyesDetector()
-        self.eyes_recognizer = EyesRecognizer(
-            "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
+        self.eyes_recognizer = EyesRecognizer()
+        self.eyes_recognizer.load_state("/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
             "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
 
         self.tabs_list = [
