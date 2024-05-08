@@ -7,27 +7,27 @@ class ModelFileManager:
         files = os.listdir(os.curdir)
         files.sort(reverse=True)
         print(files)
-        count_files = 0
         model_files = {}
         model_version = ''
         for file in files:
-            if file.endswith("left.pth"):
-                count_files += 1
-                model_files['left'] = file
-                model_version = file.removesuffix('_left.pth')
-            elif file.endswith("right.pth"):
-                count_files += 1
+            if file.endswith("right.pth"):
                 model_files['right'] = file
-            if count_files == 2:
-                break
-        return count_files == 2, model_version, model_files
+                model_version = file.removesuffix('_right.pth')
+            elif file.endswith("left.pth") and file.startswith(model_version):
+                model_files['left'] = file
+            if len(model_files) == 2:
+                return True, model_version, model_files
+        return False, '', {}
 
     @staticmethod
     def get_loaded_versions():
         files = os.listdir(os.curdir)
         files.sort(reverse=True)
         versions = []
+        versions_hash = []
         for file in files:
-            if file.endswith("left.pth"):
+            if file.endswith("right.pth"):
+                versions_hash.append(file.removesuffix('_right.pth'))
+            if file.endswith("left.pth") and file.removesuffix('_left.pth') in versions_hash:
                 versions.append(file.removesuffix('_left.pth'))
         return versions

@@ -26,7 +26,7 @@ class CalibrationTab(AbstractTab):
             QPoint(self.screen_size.width() - self.half_point_size, self.half_point_size),
             QPoint(self.half_point_size, self.screen_size.height() / 2)
         ]
-        self.counter = 0
+        self.counter = -1
         self.eye_detector = parent_class.eye_detector
         self.eyes_recognizer = parent_class.eyes_recognizer
         self.camera = parent_class.camera
@@ -38,7 +38,7 @@ class CalibrationTab(AbstractTab):
                                    parent_class.cheating_detection.lm]
 
     def paintEvent(self, event):
-        if self.counter > 8:
+        if self.counter > 8 or self.counter == -1:
             return
         painter = QPainter(self)
         pen = QPen(QColor(255, 255, 255))
@@ -73,6 +73,7 @@ class CalibrationTab(AbstractTab):
         if not self.eyes_recognizer.is_loaded:
             QMessageBox.warning(self, 'No loaded model', "There aren't any downloaded models on the device. Please go "
                                                          "to settings tab and download a model.")
+            self.counter = -1
             return
         self.camera.start_capture()
         self.counter = 0

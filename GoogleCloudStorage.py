@@ -17,7 +17,7 @@ class GoogleCloudStorage(object):
 
     def get_versions(self):
         query = f"'{self.folder_id}' in parents"
-        results = self.service.files().list(q=query, pageSize=10, fields="nextPageToken, files(id, name)").execute()
+        results = self.service.files().list(q=query, pageSize=100, fields="nextPageToken, files(id, name)").execute()
         files = results.get('files', [])
         sorted_files = sorted(files, key=lambda x: x['name'], reverse=True)
         return sorted_files
