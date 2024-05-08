@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QHBoxLayout, QComboBox, QLabel, QPushButton, QBoxLayout, QVBoxLayout, QMessageBox
+from google.auth.transport import requests
 
 from GoogleCloudStorage import GoogleCloudStorage
 from Interface.AbstractTab import AbstractTab
@@ -37,8 +38,12 @@ class SettingsTab(AbstractTab):
 
         self.cloud_manager = parent_class.cloud_manager
         self.download_versions_combobox = QComboBox(self)
-        self.download_versions = self.cloud_manager.get_versions()
-        self.download_versions_combobox.addItems(GoogleCloudStorage.get_versions_names(self.download_versions))
+        if GoogleCloudStorage.check_connection():
+            self.download_versions = self.cloud_manager.get_versions()
+            self.download_versions_combobox.addItems(GoogleCloudStorage.get_versions_names(self.download_versions))
+        else:
+            self.download_versions = []
+        # self.download_versions_combobox.addItems(self.download_versions)
         self.download_version_button = QPushButton("Download version")
         self.download_version_button.clicked.connect(self.onDownloadVersionPressed)
 
@@ -76,11 +81,25 @@ class SettingsTab(AbstractTab):
         self.camera_list_combobox.addItems(camera_names)
 
     def onDownloadVersionPressed(self):
+        if not GoogleCloudStorage.check_connection():
+            QMessageBox.warning(self, 'No connection', 'No internet connection. Make sure your internet connection is '
+                                                       'working properly and try again.')
+            return
+        if len(self.download_versions) == 0 and GoogleCloudStorage.check_connection():
+            self.download_versions = self.cloud_manager.get_versions()
+            self.download_versions_combobox.addItems(GoogleCloudStorage.get_versions_names(self.download_versions))
+            return
         chosen_version = self.download_versions[self.download_versions_combobox.currentIndex()]
         version_id = chosen_version['id']
         version_name = chosen_version['name']
         print(version_id)
-        if self.cloud_manager.download_files_from_folder(version_id, version_name):
+        try:
+            self.cloud_manager.download_files_from_folder(version_id, version_name)
+        except ConnectionError as e:
+            QMessageBox.critical(self, 'Download error', 'An error occurred while downloading the model. Check '
+                                                         'internet connection and try again.')
+            return
+        else:
             QMessageBox.information(self, "Download finished", f"Downloaded model version {chosen_version['name']} successfully.")
         self.loaded_versions = ModelFileManager.get_loaded_versions()
         self.loaded_versions_combobox.clear()
@@ -92,12 +111,22 @@ class SettingsTab(AbstractTab):
                                                              "Please download a model then try to load it.")
             return
         chosen_version = self.loaded_versions[self.loaded_versions_combobox.currentIndex()]
-        self.eyes_recognizer.load_state(chosen_version + '_left.pth', chosen_version + '_right.pth')
+        try:
+            self.eyes_recognizer.load_state(chosen_version + '_left.pth', chosen_version + '_right.pth')
+        except Exception as e:
+            QMessageBox.critical(self, 'File corrupted', f'One of the {chosen_version} model files is '
+                                                         f'corrupted, try downloading it again or use another version.')
+            return
+
         self.parent_class.model_version = chosen_version
         QMessageBox.information(self, "Loaded succeeded", f"Model version {chosen_version} was loaded successfully.")
         self.model_loaded_label.setText(f'Model is loaded, version: {self.parent_class.model_version}')
 
+
     def tab_selected(self):
         if self.parent_class.calibration_taken:
             self.calibration_label.setText('Calibration status: taken')
+        if len(self.download_versions) == 0 and GoogleCloudStorage.check_connection():
+            self.download_versions = self.cloud_manager.get_versions()
+            self.download_versions_combobox.addItems(GoogleCloudStorage.get_versions_names(self.download_versions))
         self.layout.update()

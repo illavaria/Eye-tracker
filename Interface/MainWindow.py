@@ -1,6 +1,6 @@
 import os
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
 
 from ModelFileManager import ModelFileManager
 from GoogleCloudStorage import GoogleCloudStorage
@@ -24,7 +24,13 @@ class MainWindow(QMainWindow):
         self.camera = Camera(0)
         self.tab_using_camera = 0
 
-        self.cloud_manager = GoogleCloudStorage()
+        try:
+            self.cloud_manager = GoogleCloudStorage()
+        except FileNotFoundError:
+            QMessageBox.critical(self, "No credentials file", "No credentials file found. Please make sure that it is "
+                                                              "in the same directory as the application and then start"
+                                                              " the application again")
+            return
 
         self.cheating_detection = CheatingDetection()
         self.calibration_taken = False
@@ -33,7 +39,11 @@ class MainWindow(QMainWindow):
         self.model_version = ''
         is_loaded, self.model_version, model_files = ModelFileManager.get_latest_model_if_exists()
         if is_loaded:
-            self.eyes_recognizer.load_state(model_files['left'], model_files['right'])
+            try:
+                self.eyes_recognizer.load_state(model_files['left'], model_files['right'])
+            except Exception as e:
+                QMessageBox.critical(self, 'File corrupted', f'One of the {self.model_version} model files is '
+                                                             f'corrupted, try downloading it again or use another version.')
         print(self.eyes_recognizer.is_loaded)
 
         self.tabs_list = [
@@ -70,4 +80,5 @@ class MainWindow(QMainWindow):
 app = QApplication([])
 main_window = MainWindow()
 main_window.showMaximized()
+main_window.cloud_manager = GoogleCloudStorage()
 app.exec()

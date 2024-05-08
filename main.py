@@ -242,17 +242,38 @@ class EyeDistances:
     def get_angle(dot1, dot2):
         return math.atan((dot1[1] - dot2[1]) / (dot1[0] - dot2[0])) * 180 / math.pi
 
+    @staticmethod
+    def calculate_angle(dot1, dot2, middle_dot):
+        # Векторы прямых
+        vec1 = (middle_dot[0] - dot2[0], middle_dot[1] - dot2[1])
+        vec2 = (middle_dot[0] - dot1[0], middle_dot[1] - dot1[1])
+
+        # Скалярное произведение векторов
+        dot_product = vec2[0] * vec1[0] + vec2[1] * vec1[1]
+
+        # Нормы (длины) векторов
+        norm_length1 = math.sqrt(vec1[0] ** 2 + vec1[1] ** 2)
+        norm_length2 = math.sqrt(vec2[0] ** 2 + vec2[1] ** 2)
+
+        cos_theta = dot_product / (norm_length1 * norm_length2)
+        theta_radians = math.acos(cos_theta)
+        theta_degrees = math.degrees(theta_radians)
+
+        return theta_degrees
+
     def get_distances_for_one_eye(self, eye):
         eye.left_distance = [(eye.left_corner[0] - eye.pupil[0]) / self.standard_x,
                              (eye.left_corner[1] - eye.pupil[1]) / self.standard_x]
         eye.right_distance = [(eye.pupil[0] - eye.right_corner[0]) / self.standard_x,
                               (eye.pupil[1] - eye.right_corner[1] / self.standard_x)]
-        rclc_angle = self.get_angle(eye.right_corner, eye.left_corner)
-        lcp = self.get_angle(eye.pupil, eye.left_corner)
-        eye.left_angle = lcp + rclc_angle
-        rcp = 0 - self.get_angle(eye.right_corner, eye.pupil)
-        eye.right_angle = rcp - rclc_angle
-        big_angle = 180 - rcp - lcp
+        # rclc_angle = self.get_angle(eye.right_corner, eye.left_corner)
+        # lcp = self.get_angle(eye.pupil, eye.left_corner)
+        # eye.left_angle = lcp + rclc_angle
+        eye.left_angle = self.calculate_angle(eye.pupil, eye.right_corner, eye.left_corner)
+        # rcp = 0 - self.get_angle(eye.right_corner, eye.pupil)
+        # eye.right_angle = rcp - rclc_angle
+        eye.right_angle = self.calculate_angle(eye.pupil, eye.left_corner, eye.right_corner)
+        # big_angle = 180 - rcp - lcp
         # print(big_angle)
 
     def get_distance(self):
@@ -451,10 +472,10 @@ def print_distance(eye_distances):
     print(eye_distances.standard_x)
     print('percentage: ', eye_distances.distance_percentage_x)
 
-    print('left eye:  ', eye_distances.left_eye.left_distance_x,
-          eye_distances.left_eye.right_distance_x)
-    print('right eye: ', eye_distances.right_eye.left_distance_x,
-          eye_distances.right_eye.right_distance_x)
+    print('left eye:  ', eye_distances.left_eye.left_distance[0],
+          eye_distances.left_eye.right_distance[0])
+    print('right eye: ', eye_distances.right_eye.left_distance[0],
+          eye_distances.right_eye.right_distance[0])
 
 
 def calculate_distance_for_eyesnet(x1, y1, x2, y2):
@@ -552,13 +573,14 @@ class GazeDirectionPrediction:
             return Direction.forward
 
 def debug_net():
-    eyes_recognizer = EyesRecognizer(
+    eyes_recognizer = EyesRecognizer()
+    eyes_recognizer.load_state(
         "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_left_my_dataset_fixed_photos/epoch_400.pth",
         "/Users/illaria/BSUIR/Diploma/code/PyTorchTry1/eyes_net_right_my_dataset_fixed_photos/epoch_400.pth")
-
+    print(eyes_recognizer.is_loaded)
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
-    image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_gaze_on_screen', [])
+    image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_up_down', [])
     images = image_loader.load_images()
     frame = images[0]
     # frame = cv2.imread('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/photos_not_moving_pupils_much/result0.jpg', 0)
@@ -571,9 +593,9 @@ def debug_net():
     # plt.show()
     for i in range(1, 20):
         frame = images[i]
-        if i % 3 == 0:
-            results = eye_detector.get_face_mesh_results(frame)
-            eye_detector.get_eyes_coordinates(results, frame, eye_distances)
+        # if i % 3 == 0:
+        results = eye_detector.get_face_mesh_results(frame)
+        eye_detector.get_eyes_coordinates(results, frame, eye_distances)
         # start_time = time.time()
         eyes_recognizer.get_eyes_coordinates(frame, eye_distances)
         # end_time = time.time()
@@ -586,23 +608,23 @@ def debug_net():
         cv2.drawMarker(frame, eye_distances.right_eye.left_corner, (255, 0, 255), markerSize=5)
         cv2.drawMarker(frame, eye_distances.right_eye.right_corner, (255, 0, 255), markerSize=5)
         cv2.imshow('frame', frame)
-        # print(i)
-        # print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
-        # # print(eye_distances.distance_percentage_x)
-        # print('angles:')
-        # print(eye_distances.pupil_angle)
-        # print(eye_distances.left_corner_angle)
-        # print(eye_distances.right_corner_angle)
-        #
-        # print('triangle angles')
-        # print('left:')
-        # print(eye_distances.left_eye.left_angle)
-        # print(eye_distances.left_eye.right_angle)
-        # print('right:')
-        # print(eye_distances.right_eye.left_angle)
-        # print(eye_distances.right_eye.right_angle)
-        # print(' ')
-        # print_distance(eye_distances)
+        print(i)
+        print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
+        # print(eye_distances.distance_percentage_x)
+        print('angles:')
+        print(eye_distances.pupil_angle)
+        print(eye_distances.left_corner_angle)
+        print(eye_distances.right_corner_angle)
+
+        print('triangle angles')
+        print('left:')
+        print(eye_distances.left_eye.left_angle)
+        print(eye_distances.left_eye.right_angle)
+        print('right:')
+        print(eye_distances.right_eye.left_angle)
+        print(eye_distances.right_eye.right_angle)
+        print(' ')
+        print_distance(eye_distances)
 
         # while True:
         #     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -613,7 +635,7 @@ def debug_net():
 
 
 # main()
-# debug_net()
+debug_net()
 
 
 # cap = cv2.VideoCapture(0)

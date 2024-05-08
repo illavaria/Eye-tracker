@@ -1,3 +1,8 @@
+import os
+import time
+
+import requests
+from requests.exceptions import ConnectionError, Timeout
 from google.oauth2 import service_account
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from googleapiclient.discovery import build
@@ -8,7 +13,7 @@ import io
 class GoogleCloudStorage(object):
     def __init__(self):
         self.scopes = ['https://www.googleapis.com/auth/drive']
-        self.service_account_file = '/Users/illaria/BSUIR/Diploma/diploma-422409-aae94f436a83.json'
+        self.service_account_file = "credentials.json"
         self.credentials = service_account.Credentials.from_service_account_file(
                 self.service_account_file, scopes=self.scopes)
         self.service = build('drive', 'v3', credentials=self.credentials)
@@ -26,10 +31,21 @@ class GoogleCloudStorage(object):
     def get_versions_names(results):
         return [result['name'] for result in results]
 
+    @staticmethod
+    def check_connection(url='http://www.google.com', timeout=5):
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()  # Если ответ сервера не 200 OK, вызывает исключение HTTPError
+            return True
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError):
+            return False
+
     def print(self, data):
         self.pp.pprint(data)
 
     def upload_file(self, file_path, gcs_folder_id, gcs_file_name):
+        if not self.check_connection():
+            raise ConnectionError
         file_metadata = {
                         'name': gcs_file_name,
                         'parents': [gcs_folder_id]
@@ -48,6 +64,8 @@ class GoogleCloudStorage(object):
             print("Download %d%%." % int(status.progress() * 100))
 
     def download_files_from_folder(self, folder_id, folder_name):
+        if not self.check_connection():
+            raise ConnectionError
         query = f"'{folder_id}' in parents"
         results = self.service.files().list(q=query, pageSize=100, fields="nextPageToken, files(id, name)").execute()
         files = results.get('files', [])
@@ -57,6 +75,8 @@ class GoogleCloudStorage(object):
             self.download_file(file['id'], str(folder_name + '_' + file['name']))
             print(f"Downloaded {file['name']} successfully.")
         return True
+
+
 
 
 
