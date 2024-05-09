@@ -71,8 +71,8 @@ class CalibrationTab(AbstractTab):
                 print(self.parent_class.cheating_detection.right_border_percentage_x_avg)
                 print(self.parent_class.cheating_detection.left_border_angle_diff_avg)
                 print(self.parent_class.cheating_detection.right_border_angle_diff_avg)
-                print(self.parent_class.cheating_detection.up_border_angle_diff_avg)
-                print(self.parent_class.cheating_detection.down_border_angle_diff_avg)
+                print(self.parent_class.cheating_detection.up_border_angle_avg)
+                print(self.parent_class.cheating_detection.down_border_angle_avg)
                 QMessageBox.information(self, "Calibration over", "Calibration is finished, you can go to other tabs")
             self.update()
 
