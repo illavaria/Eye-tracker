@@ -234,9 +234,12 @@ class EyeDistances:
         self.standard_x = 0.0
         self.left_distance_avg_x, self.right_distance_avg_x = 0.0, 0.0
         self.distance_percentage_x = 0.0  # left/right
-        self.pupil_angle = 0.0
-        self.right_corner_angle = 0.0
-        self.left_corner_angle = 0.0
+        self.pupils_line_angle = 0.0
+        self.right_corner_line_angle = 0.0
+        self.left_corner_line_angle = 0.0
+        self.right_angle_avg = 0.0
+        self.left_angle_avg = 0.0
+        self.angle_avg = 0.0
 
     @staticmethod
     def get_angle(dot1, dot2):
@@ -279,9 +282,9 @@ class EyeDistances:
     def get_distance(self):
         self.standard_x = self.left_eye.pupil[0] - self.right_eye.pupil[0]
 
-        self.pupil_angle = self.get_angle(self.left_eye.pupil, self.right_eye.pupil)
-        self.right_corner_angle = self.get_angle(self.left_eye.right_corner, self.right_eye.right_corner)
-        self.left_corner_angle = self.get_angle(self.left_eye.left_corner, self.right_eye.left_corner)
+        self.pupils_line_angle = self.get_angle(self.left_eye.pupil, self.right_eye.pupil)
+        self.right_corner_line_angle = self.get_angle(self.left_eye.right_corner, self.right_eye.right_corner)
+        self.left_corner_line_angle = self.get_angle(self.left_eye.left_corner, self.right_eye.left_corner)
 
         self.get_distances_for_one_eye(self.left_eye)
         self.get_distances_for_one_eye(self.right_eye)
@@ -290,6 +293,10 @@ class EyeDistances:
         self.right_distance_avg_x = (self.left_eye.right_distance[0] + self.right_eye.right_distance[0]) / 2
 
         self.distance_percentage_x = self.left_distance_avg_x / self.right_distance_avg_x
+
+        self.left_angle_avg = (self.left_eye.left_angle + self.right_eye.left_angle) / 2
+        self.right_angle_avg = (self.left_eye.right_angle + self.right_eye.right_angle) / 2
+        self.angle_avg = (self.left_angle_avg + self.right_angle_avg) / 2
 
     def draw(self, frame):
         frame = self.left_eye.draw(frame)
@@ -333,7 +340,6 @@ class EyesDetector:
 
             eye_distances.get_distance()
 
-
 class CheatingDetection:
     def __init__(self):
         self.lct = EyeDistances()
@@ -346,11 +352,34 @@ class CheatingDetection:
         self.bm = EyeDistances()
         self.rcb = EyeDistances()
 
+        self.left_border_percentage_x_avg = 0.0
+        self.left_border_angle_diff_avg = 0.0
+        self.right_border_percentage_x_avg = 0.0
+        self.right_border_angle_diff_avg = 0.0
+        self.up_border_angle_diff_avg = 0.0
+        self.down_border_angle_diff_avg = 0.0
+
+
     def predict(self, eye_distances):
         if eye_distances.distance_percentage_x < self.lm.distance_percentage_x:
             return True, Direction.left
         else:
             return False, Direction.forward
+
+    def calculate_borders(self):
+        self.left_border_percentage_x_avg = (self.lct.distance_percentage_x + self.lcb.distance_percentage_x +
+                                             self.lm.distance_percentage_x) / 3
+        self.left_border_angle_diff_avg = (self.lct.left_angle_avg - self.lct.right_angle_avg +
+                                           self.lcb.left_angle_avg - self.lcb.right_angle_avg +
+                                           self.lm.left_angle_avg - self.lm.right_angle_avg) / 3
+        self.right_border_percentage_x_avg = (self.rct.distance_percentage_x + self.rcb.distance_percentage_x +
+                                              self.rm.distance_percentage_x) /3
+        self.right_border_angle_diff_avg = (self.rct.right_angle_avg - self.rct.left_angle_avg +
+                                            self.rcb.right_angle_avg - self.rcb.left_angle_avg +
+                                            self.rm.right_angle_avg - self.rm.left_angle_avg) / 3
+        self.up_border_angle_diff_avg = (self.lct.angle_avg + self.tm.angle_avg + self.rct.angle_avg) / 3
+        self.down_border_angle_diff_avg = (self.lcb.angle_avg + self.bm.angle_avg + self.rcb.angle_avg) / 3
+
 
 
 def predefine(eyeDetector):
@@ -565,12 +594,17 @@ class GazeDirectionPrediction:
         self.down_threshold = 3.0
 
     def predict(self, eye_distances):
-        if eye_distances.distance_percentage_x < self.left_threshold:
-            return Direction.left
-        elif eye_distances.distance_percentage_x > self.right_threshold:
-            return Direction.right
+        if abs(eye_distances.left_angle_avg - eye_distances.right_angle_avg) > 3:
+            if eye_distances.distance_percentage_x < self.left_threshold:
+                return Direction.left
+            elif eye_distances.distance_percentage_x > self.right_threshold:
+                return Direction.right
         else:
-            return Direction.forward
+            if eye_distances.angle_avg > 12:
+                return Direction.up
+            elif eye_distances.angle_avg < 7:
+                return Direction.down
+        return Direction.forward
 
 def debug_net():
     eyes_recognizer = EyesRecognizer()
@@ -580,6 +614,7 @@ def debug_net():
     print(eyes_recognizer.is_loaded)
     eye_distances = EyeDistances()
     eye_detector = EyesDetector()
+    gaze_prediction = GazeDirectionPrediction()
     image_loader = ImagesLoader('/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/photos_up_down', [])
     images = image_loader.load_images()
     frame = images[0]
@@ -612,9 +647,9 @@ def debug_net():
         print('left distance ' + str(eye_distances.left_distance_avg_x) + '\nright distance ' + str(eye_distances.right_distance_avg_x))
         # print(eye_distances.distance_percentage_x)
         print('angles:')
-        print(eye_distances.pupil_angle)
-        print(eye_distances.left_corner_angle)
-        print(eye_distances.right_corner_angle)
+        print(eye_distances.pupils_line_angle)
+        print(eye_distances.left_corner_line_angle)
+        print(eye_distances.right_corner_line_angle)
 
         print('triangle angles')
         print('left:')
@@ -623,19 +658,23 @@ def debug_net():
         print('right:')
         print(eye_distances.right_eye.left_angle)
         print(eye_distances.right_eye.right_angle)
+        print('avg left and right angles')
+        print(eye_distances.left_angle_avg)
+        print(eye_distances.right_angle_avg)
         print(' ')
+        print(gaze_prediction.predict(eye_distances))
         print_distance(eye_distances)
 
         # while True:
         #     if cv2.waitKey(1) & 0xFF == ord('q'):
         #         break
         cv2.imwrite(
-            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/mynet_photos_up_down_no_last_coordinate/result' + str(
+            '/Users/illaria/BSUIR/Diploma/code/MediaPipeTry1/all_photos/mynet_myds_up_down/result' + str(
                 i) + '.jpg', frame)
 
 
 # main()
-debug_net()
+# debug_net()
 
 
 # cap = cv2.VideoCapture(0)
