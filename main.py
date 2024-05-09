@@ -353,32 +353,48 @@ class CheatingDetection:
         self.rcb = EyeDistances()
 
         self.left_border_percentage_x_avg = 0.0
-        self.left_border_angle_diff_avg = 0.0
         self.right_border_percentage_x_avg = 0.0
+        self.left_border_angle_diff_avg = 0.0
         self.right_border_angle_diff_avg = 0.0
         self.up_border_angle_diff_avg = 0.0
         self.down_border_angle_diff_avg = 0.0
 
 
     def predict(self, eye_distances):
-        if eye_distances.distance_percentage_x < self.lm.distance_percentage_x:
+        if eye_distances.distance_percentage_x + 0.13 < self.left_border_percentage_x_avg :
             return True, Direction.left
+        elif eye_distances.distance_percentage_x > self.right_border_percentage_x_avg + 0.14:
+            return True, Direction.right
+        elif (eye_distances.angle_avg / eye_distances.standard_x) - self.up_border_angle_diff_avg > 0.014:
+            return True, Direction.up
+        elif self.down_border_angle_diff_avg - (eye_distances.angle_avg / eye_distances.standard_x) > 0.015:
+            return True, Direction.down
         else:
             return False, Direction.forward
 
     def calculate_borders(self):
         self.left_border_percentage_x_avg = (self.lct.distance_percentage_x + self.lcb.distance_percentage_x +
                                              self.lm.distance_percentage_x) / 3
-        self.left_border_angle_diff_avg = (self.lct.left_angle_avg - self.lct.right_angle_avg +
-                                           self.lcb.left_angle_avg - self.lcb.right_angle_avg +
-                                           self.lm.left_angle_avg - self.lm.right_angle_avg) / 3
         self.right_border_percentage_x_avg = (self.rct.distance_percentage_x + self.rcb.distance_percentage_x +
-                                              self.rm.distance_percentage_x) /3
-        self.right_border_angle_diff_avg = (self.rct.right_angle_avg - self.rct.left_angle_avg +
-                                            self.rcb.right_angle_avg - self.rcb.left_angle_avg +
-                                            self.rm.right_angle_avg - self.rm.left_angle_avg) / 3
-        self.up_border_angle_diff_avg = (self.lct.angle_avg + self.tm.angle_avg + self.rct.angle_avg) / 3
-        self.down_border_angle_diff_avg = (self.lcb.angle_avg + self.bm.angle_avg + self.rcb.angle_avg) / 3
+                                              self.rm.distance_percentage_x) / 3
+        self.left_border_angle_diff_avg = ((self.lct.left_angle_avg - self.lct.right_angle_avg) / self.lct.standard_x +
+                                           (self.lcb.left_angle_avg - self.lcb.right_angle_avg) / self.lcb.standard_x +
+                                           (self.lm.left_angle_avg - self.lm.right_angle_avg) / self.lm.standard_x) / 3
+        self.right_border_angle_diff_avg = ((self.rct.right_angle_avg - self.rct.left_angle_avg) / self.rct.standard_x +
+                                            (self.rcb.right_angle_avg - self.rcb.left_angle_avg) / self.rcb.standard_x+
+                                            (self.rm.right_angle_avg - self.rm.left_angle_avg) / self.rm.standard_x)
+        self.up_border_angle_diff_avg = (self.lct.angle_avg / self.lct.standard_x +
+                                         self.tm.angle_avg / self.tm.standard_x +
+                                         self.rct.angle_avg / self.rct.standard_x) / 3
+        self.down_border_angle_diff_avg = (self.lcb.angle_avg / self.lcb.standard_x +
+                                           self.bm.angle_avg / self.bm.standard_x +
+                                           self.rcb.angle_avg / self.rcb.standard_x) / 3
+        # self.up_border_angle_diff_avg = (self.lct.angle_avg +
+        #                                  self.tm.angle_avg +
+        #                                  self.rct.angle_avg ) / 3
+        # self.down_border_angle_diff_avg = (self.lcb.angle_avg +
+        #                                    self.bm.angle_avg +
+        #                                    self.rcb.angle_avg) /3
 
 
 

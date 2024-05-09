@@ -4,7 +4,7 @@ from PyQt6.QtCore import QTimer, Qt
 from Interface.AbstractTab import AbstractTab
 import cv2
 
-from main import EyesDetector, EyeDistances, ImageEdit, GazeDirectionPrediction, EyesRecognizer
+from main import EyesDetector, EyeDistances, ImageEdit, GazeDirectionPrediction, EyesRecognizer, Direction
 
 
 class CheatingDetectionTab(AbstractTab):
@@ -25,6 +25,8 @@ class CheatingDetectionTab(AbstractTab):
         self.eye_distances = EyeDistances()
         self.cheating_detection = parent_class.cheating_detection
         self.counter = 0
+        self.is_cheating = False
+        self.direction = Direction.forward
 
         empty_label = QLabel(self)
 
@@ -69,8 +71,13 @@ class CheatingDetectionTab(AbstractTab):
                 self.exception_label.setText("Don't hide the face")
             else:
                 self.exception_label.setText('')
-            direction = self.cheating_detection.predict(self.eye_distances)
-            self.direction_label.setText(direction[1].value)
+            if self.counter % 2 == 0:
+                self.is_cheating, self.direction = self.cheating_detection.predict(self.eye_distances)
+            if self.is_cheating:
+                self.direction_label.setText(self.direction.value)
+            else:
+                self.direction_label.setText('')
+            print(self.eye_distances.angle_avg / self.eye_distances.standard_x)
             if self.radio_button.isChecked():
                 image = self.eye_distances.draw(image)
             image = ImageEdit.flip_image(image)
