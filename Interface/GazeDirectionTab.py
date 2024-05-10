@@ -64,13 +64,15 @@ class GazeDirectionTab(AbstractTab):
                 self.eyes_recognizer.get_eyes_coordinates(hvs, self.eye_distances)
             except Exception as e:
                 self.exception_label.setText("Don't hide the face")
+                self.direction_label.setText('')
+                self.counter = 4
             else:
                 self.exception_label.setText('')
+                direction = self.gaze_prediction.predict(self.eye_distances)
+                self.direction_label.setText(direction.value)
+                if self.radio_button.isChecked():
+                    image = self.eye_distances.draw(image)
 
-            direction = self.gaze_prediction.predict(self.eye_distances)
-            self.direction_label.setText(direction.value)
-            if self.radio_button.isChecked():
-                image = self.eye_distances.draw(image)
             image = ImageEdit.flip_image(image)
             image = QImage(image.data, image.shape[1], image.shape[0], QImage.Format.Format_RGB888)
             pixmap = QPixmap.fromImage(image)

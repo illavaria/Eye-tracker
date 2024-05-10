@@ -92,6 +92,8 @@ class Camera:
             return frame
 
     def start_capture(self):
+        if self.camera_number is None:
+            return False
         self.capture = cv2.VideoCapture(self.camera_number)
 
     def stop_capture(self):

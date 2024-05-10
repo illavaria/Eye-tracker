@@ -21,7 +21,13 @@ class MainWindow(QMainWindow):
         self.setFixedSize(self.screen_size)
         self.initial_position = self.pos()
 
-        self.camera = Camera(0)
+        self.camera = Camera(None)
+        camera_list = self.camera.list_ports()
+        if len(camera_list) == 0:
+            QMessageBox.critical(self, "No cameras", "No cameras are available. Please go to settings and allow this "
+                                                     "application to access camera")
+            return
+        self.camera.camera_number = camera_list[0]
         self.tab_using_camera = 0
 
         try:

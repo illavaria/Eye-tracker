@@ -37,9 +37,9 @@ class CheatingDetectionTab(AbstractTab):
 
         self.exception_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.text_label.setFixedWidth(150)
-        self.direction_label.setFixedWidth(150)
-        self.exception_label.setFixedWidth(150)
+        self.text_label.setFixedWidth(250)
+        self.direction_label.setFixedWidth(250)
+        self.exception_label.setFixedWidth(250)
 
         hbox = QHBoxLayout(self)
         hbox.addWidget(self.radio_button, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -69,14 +69,19 @@ class CheatingDetectionTab(AbstractTab):
                 self.eyes_recognizer.get_eyes_coordinates(hvs, self.eye_distances)
             except Exception as e:
                 self.exception_label.setText("Don't hide the face")
+                self.direction_label.setText('')
+                self.text_label.setText('')
+                self.counter = 4
             else:
                 self.exception_label.setText('')
-            if self.counter % 2 == 0:
-                self.is_cheating, self.direction = self.cheating_detection.predict(self.eye_distances)
-            if self.is_cheating:
-                self.direction_label.setText(self.direction.value)
-            else:
-                self.direction_label.setText('')
+                if self.counter % 3 == 0:
+                    self.is_cheating, self.direction = self.cheating_detection.predict(self.eye_distances)
+                if self.is_cheating:
+                    self.text_label.setText('The gaze is not on the screen,\n the direction of it is:')
+                    self.direction_label.setText(self.direction.value)
+                else:
+                    self.direction_label.setText('')
+                    self.text_label.setText('')
             print(self.eye_distances.angle_avg / self.eye_distances.standard_x)
             if self.radio_button.isChecked():
                 image = self.eye_distances.draw(image)
@@ -97,7 +102,6 @@ class CheatingDetectionTab(AbstractTab):
             return
 
         self.radio_button.setText('Draw dots')
-        self.text_label.setText('Gaze direction:')
         self.direction_label.setText('Forward')
         self.camera.start_capture()
         frame = self.camera.read_frame()
