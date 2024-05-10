@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QPainter, QPen, QColor
+from PyQt6.QtGui import QPainter, QPen, QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QPoint, QTimer
 
@@ -41,7 +41,11 @@ class CalibrationTab(AbstractTab):
         if self.counter > 8 or self.counter == -1:
             return
         painter = QPainter(self)
-        pen = QPen(QColor(255, 255, 255))
+        background_color = self.palette().color(self.backgroundRole())
+        if background_color.lightness() > 127:
+            pen = QPen(QColor(0, 0, 0))
+        else:
+            pen = QPen(QColor(255, 255, 255))
         pen.setWidth(12)
         painter.setPen(pen)
         painter.drawPoint(self.points[self.counter])

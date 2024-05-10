@@ -78,6 +78,9 @@ class MainWindow(QMainWindow):
 
 
 app = QApplication([])
+default_font = app.font()
+default_font.setPointSize(16)
+app.setFont(default_font)
 main_window = MainWindow()
 main_window.showMaximized()
 main_window.cloud_manager = GoogleCloudStorage()
