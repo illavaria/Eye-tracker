@@ -2,9 +2,8 @@ from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout, QRadioButton, QMessageBox
 from PyQt6.QtCore import QTimer, Qt
 from Interface.AbstractTab import AbstractTab
-import cv2
 
-from main import EyesDetector, EyeDistances, ImageEdit, GazeDirectionPrediction, EyesRecognizer
+from main import EyeDistances, ImageEdit, GazeDirectionPrediction
 
 
 class GazeDirectionTab(AbstractTab):

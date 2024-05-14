@@ -2,9 +2,8 @@ from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import QLabel, QHBoxLayout, QVBoxLayout, QRadioButton, QMessageBox
 from PyQt6.QtCore import QTimer, Qt
 from Interface.AbstractTab import AbstractTab
-import cv2
 
-from main import EyesDetector, EyeDistances, ImageEdit, GazeDirectionPrediction, EyesRecognizer, Direction
+from main import EyeDistances, ImageEdit, Direction
 
 
 class CheatingDetectionTab(AbstractTab):
@@ -49,7 +48,6 @@ class CheatingDetectionTab(AbstractTab):
         vbox.addWidget(self.exception_label)
         for i in range(12):
             vbox.addWidget(empty_label)
-        # self.image_label.setAlignment(Qt.AlignCenter)
 
         self.layout.addWidget(self.image_label)
         self.layout.addLayout(vbox)

@@ -1,10 +1,9 @@
-from PyQt6.QtGui import QPainter, QPen, QColor, QPalette
-from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QMessageBox
-from PyQt6.QtCore import Qt, QPoint, QTimer
+from PyQt6.QtGui import QPainter, QPen, QColor
+from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtCore import QPoint
 
 from Interface.AbstractTab import AbstractTab
-from main import EyesDetector, Camera, EyeDistances, EyesRecognizer, ImageEdit
-import cv2
+from main import EyeDistances, ImageEdit
 
 
 class CalibrationTab(AbstractTab):

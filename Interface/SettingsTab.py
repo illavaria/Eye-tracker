@@ -1,7 +1,7 @@
+import socket
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QHBoxLayout, QComboBox, QLabel, QPushButton, QBoxLayout, QVBoxLayout, QMessageBox
-from google.auth.transport import requests
+from PyQt6.QtWidgets import QHBoxLayout, QComboBox, QLabel, QPushButton, QVBoxLayout, QMessageBox
 
 from GoogleCloudStorage import GoogleCloudStorage
 from Interface.AbstractTab import AbstractTab
@@ -96,7 +96,10 @@ class SettingsTab(AbstractTab):
         try:
             self.cloud_manager.download_files_from_folder(version_id, version_name)
         except ConnectionError as e:
-            QMessageBox.critical(self, 'Download error', 'An error occurred while downloading the model. Check '
+            QMessageBox.critical(self, 'Download error', "No internet connection. Make sure your internet connection is "
+                                                         "working properly and try again.")
+        except socket.timeout as e:
+            QMessageBox.critical(self, 'Download error', 'An error occurred while downloading the model. Check the'
                                                          'internet connection and try again.')
             return
         else:

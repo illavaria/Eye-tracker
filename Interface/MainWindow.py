@@ -1,5 +1,3 @@
-import os
-
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QMessageBox
 
 from ModelFileManager import ModelFileManager
@@ -81,13 +79,3 @@ class MainWindow(QMainWindow):
 
         self.tabs_list[index].tab_selected()
         self.tab_using_camera = index
-
-
-app = QApplication([])
-default_font = app.font()
-default_font.setPointSize(16)
-app.setFont(default_font)
-main_window = MainWindow()
-main_window.showMaximized()
-main_window.cloud_manager = GoogleCloudStorage()
-app.exec()
