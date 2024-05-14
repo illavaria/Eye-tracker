@@ -1,0 +1,144 @@
+import os
+import cv2
+import numpy as np
+
+import pandas as pd
+from PIL import  Image
+from matplotlib import pyplot as plt
+
+class MyDatasetCreator:
+	def __init__(self, annotaion_path, data_folder):
+		self.annotaion_path = annotaion_path
+		self.data_folder = data_folder
+
+	def click_event(self, event, x, y, flags, param):
+		corner_of_frame_left = np.array([5, 10])
+		corner_of_frame_right = np.array([5, 10])
+		click_count, coordinates_list = param[0], param[1]
+
+		if event == cv2.EVENT_LBUTTONDOWN:
+			click_count += 1
+			if click_count <= 3:
+				coordinates_list.append((y + corner_of_frame_left[0], x + corner_of_frame_left[1]))  # Замена x и y для сохранения в формате "y x"
+				cv2.circle(img1, (x, y), 1, (0, 255, 0), -1)
+				cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+				cv2.resizeWindow('image', 1600, 800)
+				cv2.imshow('image', img1)
+			else:
+				coordinates_list.append((y + corner_of_frame_right[0], x + corner_of_frame_right[1])) 
+				cv2.circle(img2, (x, y), 1, (0, 255, 0), -1)
+				cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+				cv2.resizeWindow('image', 1600, 800)
+				cv2.imshow('image', img2)
+
+			if click_count == 6:
+				cv2.destroyWindow('image')
+				click_count = 0
+				save_coordinates(coordinates_list)
+				coordinates_list = []
+
+
+	def save_coordinates(self, coordinates):
+		with open(self.annotaion_path, 'a') as file:
+			for i in range(0, len(coordinates)):
+				file.write(f'{coordinates[i][0]} {coordinates[i][1]} ')  
+			file.write('\n')
+			
+	def create_my_dataset():
+		cap = cv2.VideoCapture(0)
+		eye_distances = EyeDistances()
+		eye_detector = EyesDetector()
+
+		ret, frame = cap.read()
+		ret, frame = cap.read()
+		annotations = open(self.annotaion_path, 'x')
+		j = 0
+		for i in range(200):
+			ret, frame = cap.read()
+			hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+			_, _, frame = cv2.split(hsv)
+			cv2.imshow('eyes', frame)
+			if i % 2 == 0:
+				results = eye_detector.get_face_mesh_results(frame)
+				eye_detector.get_eyes_coordinates(results, frame, eye_distances)
+				print(eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1])
+				if eye_distances.left_eye.bottom[1] - eye_distances.left_eye.top[1] > 14:
+					cv2.imwrite(self.annotaion_path + str(j) + '.jpg', frame)
+					annotations.write(
+						str(eye_distances.left_eye.left_corner[1]) + ' ' + str(
+							eye_distances.left_eye.left_corner[0]) + ' ' +
+						str(eye_distances.left_eye.right_corner[1]) + ' ' + str(
+							eye_distances.left_eye.right_corner[0]) + ' ' +
+						str(eye_distances.left_eye.pupil[1]) + ' ' + str(eye_distances.left_eye.pupil[0]) + ' ' +
+						str(eye_distances.right_eye.right_corner[1]) + ' ' + str(
+							eye_distances.right_eye.right_corner[0]) + ' ' +
+						str(eye_distances.right_eye.left_corner[1]) + ' ' + str(
+							eye_distances.right_eye.left_corner[0]) + ' ' +
+						str(eye_distances.right_eye.pupil[1]) + ' ' + str(eye_distances.right_eye.pupil[0]) + '\n')
+					j += 1
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
+
+		cap.release()
+		cv2.destroyAllWindows()
+		annotations.close()
+		
+	def edit_dataset(self):
+		for i in range(len(images)):
+			click_count = 0
+			coordinates_list = 0
+			signle_image_data = my_image_to_train_data(images[i], points[i])
+			print(i)
+
+			if any(stuff is None for stuff in signle_image_data):
+				continue
+
+			right_image, right_pupil, right_corner1, right_corner2, left_image, left_pupil, left_corner1, left_corner2 = signle_image_data
+			img1 = left_image
+			cv2.imshow('image', img1)
+			cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+			cv2.resizeWindow('image', 1600, 800)
+			cv2.setMouseCallback('image', click_event)
+
+			while True:
+				key = cv2.waitKey(1)
+				if key == ord('q'):
+					break
+
+			img2 = right_image
+			cv2.setMouseCallback('image', click_event, click_count, coordinates_list)
+			if click_count == 3:
+				cv2.imshow('image', img2)
+			while True:
+				key = cv2.waitKey(1)
+				if key == ord('q'):
+					break
+			if any(right_pupil < 0) or any(left_pupil < 0):
+				continue
+
+	def get_fine_images(images, points, pattern):
+		j = 0
+		for i in range(len(images)):
+			signle_image_data = my_image_to_train_data(images[i], points[i])
+			print(i)
+
+			if any(stuff is None for stuff in signle_image_data):
+				continue
+
+			right_image, right_pupil, right_corner1, right_corner2, left_image, left_pupil, left_corner1, left_corner2 = signle_image_data
+			cv2.imshow('left_image', left_image)
+			cv2.namedWindow('left_image', cv2.WINDOW_NORMAL)
+			cv2.resizeWindow('left_image', 800, 400)
+			cv2.imshow('right_image', right_image)
+			cv2.namedWindow('right_image', cv2.WINDOW_NORMAL)
+			cv2.resizeWindow('right_image', 800, 400)
+			while True:
+				key = cv2.waitKey(1)
+				if key == ord('w'):
+					cv2.imwrite(data_folder + str(pattern) + '/' + str(j)+'.jpg', images[i])
+					with open(data_folder + str(pattern) + '/annotationscopy.txt', 'a') as file:
+						file.write(str(points[i][0:12]).removeprefix('[ ').removesuffix(']').replace('  ', ' ') + '\n')
+					j += 1
+					break
+				if key == ord('q'):
+					break
