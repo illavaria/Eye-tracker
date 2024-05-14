@@ -427,8 +427,8 @@ class GazeDirectionPrediction:
             elif eye_distances.distance_percentage_x > self.right_threshold:
                 return Direction.right
         else:
-            if eye_distances.angle_avg > 12:
+            if eye_distances.angle_avg > self.up_threshold:
                 return Direction.up
-            elif eye_distances.angle_avg < 6:
+            elif eye_distances.angle_avg < self.down_threshold:
                 return Direction.down
         return Direction.forward
