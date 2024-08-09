@@ -14,11 +14,11 @@ Calibration is a necessary step for cheating detection (tracking whether the use
 ## Gaze Direction tab
 Finding eyes on a video from a webcam and tracking eye gaze.
 
-![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20gaze%20detection.png)
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%202024-08-09%20at%208.47.00%20PM.png)
 ## Cheating Detection tab
 Detects whether the user is looking at the screen or not.
 
-![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20cheating%20detection.png)
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%202024-08-09%20at%208.49.39%20PM.png)
 # Installation 
 - Download archive.
 - Unpack archive.
