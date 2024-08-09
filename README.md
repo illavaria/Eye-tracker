@@ -5,16 +5,20 @@ This project was developed as part of a diploma project for the Belarussian Stat
 - Choosing model's version.
 - Downloading a model.
 - Chousing camera.
-!(https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20settings.png)
+  
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20settings.png)
 ## Calibration tab
 Calibration is a necessary step for cheating detection (tracking whether the user is looking at the screen).
-!(https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20calibration.png)
+
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20calibration.png)
 ## Gaze Direction tab
 Finding eyes on a video from a webcam and tracking eye gaze.
-!(https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20gaze%20detection.png)
+
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20gaze%20detection.png)
 ## Cheating Detection tab
 Detects whether the user is looking at the screen or not.
-!(https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20cheating%20detection.png)
+
+![](https://github.com/illavaria/Eye-tracker/blob/main/Images/Screenshot%20of%20cheating%20detection.png)
 # Installation 
 - Download archive.
 - Unpack archive.
